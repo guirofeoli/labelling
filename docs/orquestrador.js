@@ -4,27 +4,41 @@
   var USERS_URL = 'https://raw.githubusercontent.com/guirofeoli/labelling/refs/heads/main/docs/users.json';
 
   var loggedUser = null;
+  var isLoadingUtils = false;
+
+  // DEBUG: Script carregado
+  console.log('[Orquestrador] Script carregado.');
 
   function loadScriptOnce(url, flag, callback) {
     if (window[flag]) return callback();
+    if (isLoadingUtils && flag === 'utilsLoaded') return; // evita múltiplos loads concorrentes
+    if (flag === 'utilsLoaded') isLoadingUtils = true;
+
     var script = document.createElement('script');
     script.src = url;
     script.onload = function() {
       window[flag] = true;
+      if (flag === 'utilsLoaded') isLoadingUtils = false;
+      console.log('[Orquestrador] Script carregado:', url);
       callback();
+    };
+    script.onerror = function() {
+      if (flag === 'utilsLoaded') isLoadingUtils = false;
+      console.error('[Orquestrador] Falha ao carregar script:', url);
+      alert('Erro ao carregar script necessário: ' + url);
     };
     document.head.appendChild(script);
   }
 
   function showLoginModal(onSuccess) {
     var modal = document.createElement('div');
-    modal.style = 'background:#fff;padding:20px;border:1px solid #333;position:fixed;top:30%;left:40%;z-index:9999;';
+    modal.style = 'background:#fff;padding:20px 24px 16px 24px;border:1.2px solid #333;position:fixed;top:30%;left:50%;transform:translateX(-50%);z-index:9999;border-radius:8px;min-width:280px;font-family:sans-serif;';
     modal.innerHTML = `
-      <h3>Login para rotulagem</h3>
-      <input type="text" id="userLogin" placeholder="Usuário" style="display:block;margin-bottom:10px;width:90%">
-      <input type="password" id="userPass" placeholder="Senha" style="display:block;margin-bottom:10px;width:90%">
-      <button id="loginBtn">Entrar</button>
-      <button id="cancelLoginBtn">Cancelar</button>
+      <h3 style="margin:0 0 10px 0;">Login para rotulagem</h3>
+      <input type="text" id="userLogin" placeholder="Usuário" style="display:block;margin-bottom:10px;width:98%">
+      <input type="password" id="userPass" placeholder="Senha" style="display:block;margin-bottom:10px;width:98%">
+      <button id="loginBtn" style="margin-top:6px;">Entrar</button>
+      <button id="cancelLoginBtn" style="margin-left:10px;">Cancelar</button>
       <div id="loginMsg" style="color:red;margin-top:10px;"></div>
     `;
     document.body.appendChild(modal);
@@ -45,22 +59,26 @@
           if (found) {
             loggedUser = found.user;
             document.body.removeChild(modal);
+            console.log('[Orquestrador] Login realizado:', loggedUser);
             if (typeof onSuccess === 'function') onSuccess();
           } else {
             document.getElementById('loginMsg').textContent = 'Usuário ou senha inválidos.';
           }
+        })
+        .catch(function(e) {
+          document.getElementById('loginMsg').textContent = 'Erro ao validar usuário: ' + e;
         });
     };
   }
 
   function suggestManualLabel(data, options) {
     var suggest = document.createElement('div');
-    suggest.style = 'background:#ffe9b5;padding:16px;border:1px solid #e7ad00;position:fixed;top:12%;left:35%;z-index:9999;';
+    suggest.style = 'background:#ffe9b5;padding:16px 18px;border:1px solid #e7ad00;position:fixed;top:12%;left:50%;transform:translateX(-50%);z-index:9999;border-radius:8px;min-width:330px;font-family:sans-serif;';
     suggest.innerHTML = `
       <div><strong>Sessão não reconhecida com confiança suficiente.</strong></div>
-      <div style="margin:10px 0;">Se você for um usuário autorizado, clique abaixo para rotular manualmente.</div>
-      <button id="manualLabelBtn">Rotular Sessão</button>
-      <button id="closeSuggestBtn" style="margin-left:10px;">Fechar</button>
+      <div style="margin:10px 0 13px 0;">Se você for um usuário autorizado, clique abaixo para rotular manualmente.</div>
+      <button id="manualLabelBtn" style="background:#149C3B;color:#fff;padding:6px 22px;border:none;border-radius:6px;">Rotular sessão</button>
+      <button id="closeSuggestBtn" style="margin-left:10px;background:#aaa;color:#fff;padding:6px 18px;border:none;border-radius:6px;">Fechar</button>
     `;
     document.body.appendChild(suggest);
     document.getElementById('closeSuggestBtn').onclick = function() {
@@ -84,33 +102,82 @@
   }
 
   function handleClick(e) {
+    // Bloqueia se já estiver rodando uma operação
+    if (isLoadingUtils) {
+      console.log('[Orquestrador] Ignorando clique: utils.js ainda carregando.');
+      return;
+    }
     loadScriptOnce(UTILS_URL, 'utilsLoaded', function() {
-      var el = e.target;
-      var data = {
-        position: getElementRelativePosition(el),
-        selectorTripa: getSelectorTripa(el),
-        parentElements: getAllParentElements(el),
-        fullSelector: getFullSelector(el),
-        text: el.innerText,
-        html: el.outerHTML
-      };
-
-      fetch('https://labelling.railway.internal/api/inteligencia', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      .then(function(resp) { return resp.json(); })
-      .then(function(resp) {
-        if (!resp || !resp.sessao || resp.confidence < 0.8) {
-          suggestManualLabel(data, resp.options || []);
-        } else {
-          console.log('[Taxonomia] Sessão detectada:', resp.sessao, 'Confiança:', resp.confidence);
+      try {
+        var el = e.target;
+        // Testa se o utils carregou bem
+        if (typeof getElementRelativePosition !== 'function') {
+          alert('[Orquestrador] utils.js não carregado corretamente.');
+          return;
         }
-      });
+        // Coleta dados do elemento clicado
+        var data = {
+          position: getElementRelativePosition(el),
+          selectorTripa: getSelectorTripa(el),
+          parentElements: getAllParentElements(el),
+          fullSelector: getFullSelector(el),
+          text: el.innerText,
+          html: el.outerHTML
+        };
+        console.log('[Orquestrador] Dados coletados do clique:', data);
+
+        // Envia para backend de inteligência
+        fetch('https://labelling.railway.internal/api/inteligencia', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        })
+        .then(function(resp) {
+          return resp.json();
+        })
+        .then(function(resp) {
+          console.log('[Orquestrador] Resposta backend:', resp);
+          if (!resp || !resp.sessao || resp.confidence < 0.8) {
+            suggestManualLabel(data, resp.options || []);
+          } else {
+            console.log('[Taxonomia] Sessão detectada:', resp.sessao, 'Confiança:', resp.confidence);
+            // Aqui você pode exibir visualmente na página se quiser!
+          }
+        })
+        .catch(function(err) {
+          alert('Erro ao consultar backend: ' + err);
+        });
+      } catch (e) {
+        console.error('[Orquestrador] Erro ao processar clique:', e);
+      }
     });
   }
 
-  document.addEventListener('click', handleClick, true);
+  // Debug: confirma que está ativando o listener
+  document.addEventListener('click', function(ev){
+    console.log('[Orquestrador] Clique capturado', ev.target);
+  }, true);
+
+  // Substitui o listener padrão para evitar múltiplos binds
+  document.removeEventListener('click', window.__orquestrador_clickHandler, true);
+  window.__orquestrador_clickHandler = function(e) {
+    // Ignore cliques no próprio modal de login, sugestão ou rotulagem
+    var modals = [
+      document.getElementById('loginBtn')?.closest('div'),
+      document.getElementById('manualLabelBtn')?.closest('div'),
+      document.getElementById('fecharModal')?.closest('div')
+    ];
+    for (var i=0; i<modals.length; i++) {
+      if (modals[i] && modals[i].contains(e.target)) {
+        //console.log('[Orquestrador] Clique ignorado (em modal)');
+        return;
+      }
+    }
+    handleClick(e);
+  };
+  document.addEventListener('click', window.__orquestrador_clickHandler, true);
+
+  // Exibe pronto
+  console.log('[Orquestrador] Pronto para taxonomizar! Clique em qualquer elemento.');
 
 })();
