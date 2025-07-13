@@ -1,6 +1,5 @@
 // utils.js
 
-// 1. Posição relativa ao viewport
 function getElementRelativePosition(el) {
   if (!el || !el.getBoundingClientRect) return null;
   var rect = el.getBoundingClientRect();
@@ -12,37 +11,33 @@ function getElementRelativePosition(el) {
     topPct: Math.round(topPct * 100) / 100,
     leftPct: Math.round(leftPct * 100) / 100,
     widthPct: Math.round(widthPct * 100) / 100,
-    heightPct: Math.round(heightPct * 100) / 100,
-    absolute: {
-      top: rect.top,
-      left: rect.left,
-      width: rect.width,
-      height: rect.height
-    }
+    heightPct: Math.round(heightPct * 100) / 100
   };
 }
 
-// 2. Tripa de seletores e busca headings/parágrafos acima com texto > 16px
+// Tripa de seletores + headings/parágrafos > 16px
 function getSelectorTripa(el) {
   var chain = [];
   var current = el;
   while (current && current !== document) {
     var sel = getFullSelector(current);
     var textSections = [];
-    var siblings = current.parentElement ? current.parentElement.children : [];
-    for (var i = 0; i < siblings.length; i++) {
-      var sib = siblings[i];
-      var style = window.getComputedStyle(sib);
-      if (
-        ((sib.tagName.match(/^H[1-6]$/i) || sib.tagName === 'P')) &&
-        (parseFloat(style.fontSize) > 16) &&
-        sib.innerText.trim().length > 0
-      ) {
-        textSections.push({
-          tag: sib.tagName,
-          text: sib.innerText.trim(),
-          fontSize: style.fontSize
-        });
+    if (current.parentElement) {
+      var siblings = current.parentElement.children;
+      for (var i = 0; i < siblings.length; i++) {
+        var sib = siblings[i];
+        var style = window.getComputedStyle(sib);
+        if (
+          ((sib.tagName.match(/^H[1-6]$/i) || sib.tagName === 'P')) &&
+          (parseFloat(style.fontSize) > 16) &&
+          sib.innerText.trim().length > 0
+        ) {
+          textSections.push({
+            tag: sib.tagName,
+            text: sib.innerText.trim(),
+            fontSize: style.fontSize
+          });
+        }
       }
     }
     chain.push({selector: sel, textSections: textSections});
@@ -51,27 +46,27 @@ function getSelectorTripa(el) {
   return chain;
 }
 
-// 3. Todos elementos pais até <html>
+// Todos pais até o topo
 function getAllParentElements(el) {
   var parents = [];
   var current = el.parentElement;
   while (current) {
-    parents.push(current);
+    parents.push(current.outerHTML);
     current = current.parentElement;
   }
   return parents;
 }
 
-// 4. Seletor completo até o elemento
+// Seletor CSS completo
 function getFullSelector(el) {
   if (!(el instanceof Element)) return '';
   var path = [];
-  while (el && el.nodeType === Node.ELEMENT_NODE) {
+  while (el && el.nodeType === 1) {
     var selector = el.nodeName.toLowerCase();
     if (el.id) {
       selector += '#' + el.id;
       path.unshift(selector);
-      break; // ID é único, pode parar aqui
+      break;
     } else {
       var sib = el, nth = 1;
       while ((sib = sib.previousElementSibling)) nth++;
