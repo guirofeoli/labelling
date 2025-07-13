@@ -15,7 +15,6 @@ function getElementRelativePosition(el) {
   };
 }
 
-// Tripa de seletores + headings/parágrafos > 16px
 function getSelectorTripa(el) {
   var chain = [];
   var current = el;
@@ -46,7 +45,6 @@ function getSelectorTripa(el) {
   return chain;
 }
 
-// Todos pais até o topo
 function getAllParentElements(el) {
   var parents = [];
   var current = el.parentElement;
@@ -57,7 +55,6 @@ function getAllParentElements(el) {
   return parents;
 }
 
-// Seletor CSS completo
 function getFullSelector(el) {
   if (!(el instanceof Element)) return '';
   var path = [];
