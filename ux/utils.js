@@ -1,108 +1,94 @@
-// utils.js - Extração universal de contexto para Auto-UX
+// utils.js - Exemplo (exporta uma função principal que reúne tudo)
 
-function getCssSelector(element) {
-  if (!(element instanceof Element)) return "";
-  var path = [];
-  while (element && element.nodeType === 1 && element.tagName.toLowerCase() !== "html") {
-    var selector = element.tagName.toLowerCase();
-    if (element.id) {
-      selector += "#" + element.id;
+window.extractElementContext = function(el) {
+  if (!el) return {};
+
+  // 1. Posição relativa na tela (0-100%)
+  function getElementRelativePosition(element) {
+    var rect = element.getBoundingClientRect();
+    var x = rect.left + rect.width / 2;
+    var y = rect.top + rect.height / 2;
+    var percX = Math.round((x / window.innerWidth) * 100);
+    var percY = Math.round((y / window.innerHeight) * 100);
+    return { x: percX, y: percY };
+  }
+
+  // 2. Árvore de seletores acima
+  function getSelectorPath(element) {
+    var path = [];
+    while (element && element.nodeType === 1 && element !== document.body) {
+      var selector = element.tagName.toLowerCase();
+      if (element.id) selector += "#" + element.id;
+      if (element.className) selector += "." + Array.from(element.classList).join(".");
       path.unshift(selector);
-      break;
+      element = element.parentElement;
     }
-    if (element.className) {
-      var classes = element.className.trim().split(/\s+/).join(".");
-      if (classes) selector += "." + classes;
+    return path.join(" > ");
+  }
+
+  // 3. Todos pais até topo
+  function getParentElements(element) {
+    var parents = [];
+    while (element && element !== document.body) {
+      parents.push(element);
+      element = element.parentElement;
     }
-    var sib = element, nth = 1;
-    while ((sib = sib.previousElementSibling)) nth++;
-    selector += ":nth-child(" + nth + ")";
-    path.unshift(selector);
-    element = element.parentElement;
+    return parents;
   }
-  return path.join(" > ");
-}
 
-function getRelativeBounding(element) {
-  var rect = element.getBoundingClientRect();
-  var docW = window.innerWidth || document.documentElement.clientWidth;
-  var docH = window.innerHeight || document.documentElement.clientHeight;
-  return {
-    top: Math.round((rect.top / docH) * 100),
-    left: Math.round((rect.left / docW) * 100),
-    width: Math.round((rect.width / docW) * 100),
-    height: Math.round((rect.height / docH) * 100)
-  };
-}
-
-function getParentsContext(element, max = 5) {
-  var res = [];
-  var node = element.parentElement;
-  while (node && node !== document.body && res.length < max) {
-    res.push({
-      tag: node.tagName || "",
-      id: node.id || "",
-      class: node.className || "",
-      cssPath: getCssSelector(node),
-      text: (node.innerText || "").replace(/\s+/g, " ").trim()
-    });
-    node = node.parentElement;
+  // 4. Seletores completos (de body até clicado)
+  function getFullSelector(element) {
+    if (!element) return "";
+    var path = [];
+    while (element && element.nodeType === 1 && element !== document.body) {
+      var sel = element.tagName.toLowerCase();
+      if (element.id) sel += "#" + element.id;
+      if (element.className) sel += "." + Array.from(element.classList).join(".");
+      path.unshift(sel);
+      element = element.parentElement;
+    }
+    return "body > " + path.join(" > ");
   }
-  return res;
-}
 
-// Pega headings e paragrafos acima com texto > 16px
-function getHeadingsAbove(element, minFont = 16, maxResults = 6) {
-  var result = [];
-  var used = {};
-  var tags = ["h1","h2","h3","h4","h5","h6","p"];
-  var node = element;
-  while (node && node !== document.body && result.length < maxResults) {
-    var sib = node.previousElementSibling;
-    while (sib && result.length < maxResults) {
-      var tag = (sib.tagName || "").toLowerCase();
-      if (tags.indexOf(tag) > -1) {
-        var cs = window.getComputedStyle(sib);
-        var fs = parseFloat(cs.fontSize || "0");
-        var txt = (sib.innerText || "").replace(/\s+/g, " ").trim();
-        if (txt.length > 2 && fs >= minFont && !used[txt]) {
-          result.push(txt);
-          used[txt] = 1;
+  // 5. Headings/parágrafos acima (texto > 16px)
+  function getContextHeadingsAndParagraphs(element) {
+    var context = [];
+    var parent = element.parentElement;
+    while (parent && parent !== document.body) {
+      var children = Array.from(parent.children);
+      children.forEach(function(child){
+        if (/^h[1-6]$/i.test(child.tagName) || child.tagName === "P") {
+          var style = window.getComputedStyle(child);
+          if (parseInt(style.fontSize) >= 16 && child.textContent.trim().length > 3) {
+            context.push({tag: child.tagName, text: child.textContent.trim(), fontSize: style.fontSize});
+          }
         }
-      }
-      sib = sib.previousElementSibling;
+      });
+      parent = parent.parentElement;
     }
-    node = node.parentElement;
+    return context;
   }
-  return result;
-}
 
-function extractElementContext(element) {
-  if (!element) return null;
-  var attrs = {};
-  ["role", "aria-label", "name", "placeholder", "type", "title", "href"].forEach(function(attr) {
-    if (element.hasAttribute && element.hasAttribute(attr))
-      attrs[attr] = element.getAttribute(attr);
-    else
-      attrs[attr] = "";
-  });
+  // Consolidado
   return {
-    tag: element.tagName || "",
-    id: element.id || "",
-    class: element.className || "",
-    text: (element.innerText || element.value || "").trim(),
-    cssPath: getCssSelector(element),
-    bounding: getRelativeBounding(element),
-    parents: getParentsContext(element),
-    contextHeadings: getHeadingsAbove(element),
-    clickable: typeof element.onclick === "function" || element.tagName === "BUTTON" || element.tagName === "A" ? 1 : 0,
-    ...attrs
+    tag: el.tagName,
+    id: el.id,
+    class: el.className,
+    text: el.textContent.trim(),
+    position: getElementRelativePosition(el),
+    selectorPath: getSelectorPath(el),
+    fullSelector: getFullSelector(el),
+    parents: getParentElements(el).map(function(e){
+      return {
+        tag: e.tagName,
+        id: e.id,
+        class: e.className,
+        selector: getFullSelector(e),
+        text: e.textContent.trim()
+      };
+    }),
+    contextHeadings: getContextHeadingsAndParagraphs(el)
   };
-}
+};
 
-// UMD export (compatível para usar como module ou window)
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = { extractElementContext };
-} else {
-  window.extractElementContext = extractElementContext;
-}
+// Outras funções auxiliares também podem ser exportadas se desejar
