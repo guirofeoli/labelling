@@ -45,11 +45,20 @@ function getSelectorTripa(el) {
   return chain;
 }
 
+// ATUALIZADA: retorna array de seletores dos pais
 function getAllParentElements(el) {
   var parents = [];
   var current = el.parentElement;
   while (current) {
-    parents.push(current.outerHTML);
+    var selector = current.tagName.toLowerCase();
+    if (current.id) {
+      selector += '#' + current.id;
+    }
+    if (current.className && typeof current.className === 'string') {
+      var cls = current.className.trim().replace(/\s+/g, '.');
+      if (cls) selector += '.' + cls;
+    }
+    parents.push(selector);
     current = current.parentElement;
   }
   return parents;
