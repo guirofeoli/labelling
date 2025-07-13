@@ -6,14 +6,12 @@
   var loggedUser = null;
   var isLoadingUtils = false;
 
-  // DEBUG: Script carregado
   console.log('[Orquestrador] Script carregado.');
 
   function loadScriptOnce(url, flag, callback) {
     if (window[flag]) return callback();
-    if (isLoadingUtils && flag === 'utilsLoaded') return; // evita múltiplos loads concorrentes
+    if (isLoadingUtils && flag === 'utilsLoaded') return;
     if (flag === 'utilsLoaded') isLoadingUtils = true;
-
     var script = document.createElement('script');
     script.src = url;
     script.onload = function() {
@@ -102,7 +100,6 @@
   }
 
   function handleClick(e) {
-    // Bloqueia se já estiver rodando uma operação
     if (isLoadingUtils) {
       console.log('[Orquestrador] Ignorando clique: utils.js ainda carregando.');
       return;
@@ -110,38 +107,33 @@
     loadScriptOnce(UTILS_URL, 'utilsLoaded', function() {
       try {
         var el = e.target;
-        // Testa se o utils carregou bem
-        if (typeof getElementRelativePosition !== 'function') {
+        if (typeof getElementRelativePosition !== 'function' || typeof getSelectorTripa !== 'function' || typeof getFullSelector !== 'function' || typeof getHeadingAndParagraphContext !== 'function') {
           alert('[Orquestrador] utils.js não carregado corretamente.');
           return;
         }
-        // Coleta dados do elemento clicado
+        var selectorTripa = getSelectorTripa(el);
         var data = {
           position: getElementRelativePosition(el),
-          selectorTripa: getSelectorTripa(el),
-          parentElements: getAllParentElements(el),
+          selectorTripa: selectorTripa,
+          contextHeadingsParagraphs: getHeadingAndParagraphContext(selectorTripa),
           fullSelector: getFullSelector(el),
           text: el.innerText,
           html: el.outerHTML
         };
         console.log('[Orquestrador] Dados coletados do clique:', data);
 
-        // Envia para backend de inteligência
         fetch('https://labelling.railway.internal/api/inteligencia', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
         })
-        .then(function(resp) {
-          return resp.json();
-        })
+        .then(function(resp) { return resp.json(); })
         .then(function(resp) {
           console.log('[Orquestrador] Resposta backend:', resp);
           if (!resp || !resp.sessao || resp.confidence < 0.8) {
             suggestManualLabel(data, resp.options || []);
           } else {
             console.log('[Taxonomia] Sessão detectada:', resp.sessao, 'Confiança:', resp.confidence);
-            // Aqui você pode exibir visualmente na página se quiser!
           }
         })
         .catch(function(err) {
@@ -153,15 +145,9 @@
     });
   }
 
-  // Debug: confirma que está ativando o listener
-  document.addEventListener('click', function(ev){
-    console.log('[Orquestrador] Clique capturado', ev.target);
-  }, true);
-
-  // Substitui o listener padrão para evitar múltiplos binds
+  // Evita múltiplos listeners
   document.removeEventListener('click', window.__orquestrador_clickHandler, true);
   window.__orquestrador_clickHandler = function(e) {
-    // Ignore cliques no próprio modal de login, sugestão ou rotulagem
     var modals = [
       document.getElementById('loginBtn')?.closest('div'),
       document.getElementById('manualLabelBtn')?.closest('div'),
@@ -169,7 +155,6 @@
     ];
     for (var i=0; i<modals.length; i++) {
       if (modals[i] && modals[i].contains(e.target)) {
-        //console.log('[Orquestrador] Clique ignorado (em modal)');
         return;
       }
     }
@@ -177,7 +162,5 @@
   };
   document.addEventListener('click', window.__orquestrador_clickHandler, true);
 
-  // Exibe pronto
   console.log('[Orquestrador] Pronto para taxonomizar! Clique em qualquer elemento.');
-
 })();
