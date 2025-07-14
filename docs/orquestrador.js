@@ -9,9 +9,28 @@
   var isLoadingUtils = false;
   var modelReady = false;
 
-  // --- FUNÇÕES DE CARREGAMENTO DE SCRIPTS ---
+  // ---- AVISO DE FALTA DE MODELO ----
+  window.showModelMissingNotice = function() {
+    if (document.getElementById('taxo-model-missing')) return;
+    var div = document.createElement('div');
+    div.id = 'taxo-model-missing';
+    div.style = 'position:fixed;top:36%;left:50%;transform:translate(-50%, -50%);background:#fffbe6;border:2px solid #e7ad00;padding:32px 34px 26px 34px;font-size:1.22em;z-index:99999;border-radius:15px;min-width:350px;text-align:center;box-shadow:0 2px 22px #4442;font-family:sans-serif;';
+    div.innerHTML = "<b>⚠️ Ainda não há modelo treinado.</b><br><br>Rotule exemplos manualmente antes de treinar.<br><br><small>Clique desabilitado.</small>";
+    document.body.appendChild(div);
+  };
+
+  // ---- REMOVE AVISO ----
+  window.hideModelMissingNotice = function() {
+    var div = document.getElementById('taxo-model-missing');
+    if (div) {
+      div.parentNode.removeChild(div);
+      console.log('[Labelling] Painel de modelo ausente removido!');
+    }
+  };
+
+  // ---- CARREGA SCRIPTS EXTERNOS ----
   function loadScriptOnce(url, flag, callback) {
-    if (window[flag]) return callback();
+    if (window[flag]) return callback && callback();
     if (isLoadingUtils && flag === 'utilsLoaded') return;
     if (flag === 'utilsLoaded') isLoadingUtils = true;
     var script = document.createElement('script');
@@ -19,7 +38,7 @@
     script.onload = function() {
       window[flag] = true;
       if (flag === 'utilsLoaded') isLoadingUtils = false;
-      if (callback) callback();
+      callback && callback();
     };
     script.onerror = function() {
       if (flag === 'utilsLoaded') isLoadingUtils = false;
@@ -28,34 +47,32 @@
     document.head.appendChild(script);
   }
 
-  // --- LOGIN manual pelo console ---
+  // ---- LOGIN MANUAL PELO CONSOLE ----
   window.loginTaxonomista = function(callbackAfterLogin) {
     loadScriptOnce(LOGIN_URL, 'loginLoaded', function() {
       window.openLoginModal(function(user){
         loggedUser = user;
+        window.hideModelMissingNotice();
         if (typeof callbackAfterLogin === 'function') callbackAfterLogin(user);
-        // Após login bem-sucedido, inicia fluxo de rotulagem guiada:
         window.startRotulagemUX && window.startRotulagemUX();
       }, USERS_URL);
     });
   };
 
-  // --- RENDERIZA ROTULAGEM GUIADA ---
+  // ---- INICIA ROTULAGEM GUIADA ----
   window.startRotulagemUX = function() {
-    // Carrega utils.js e rotulagem.js
     loadScriptOnce(UTILS_URL, 'utilsLoaded', function() {
       loadScriptOnce(ROTULAGEM_URL, 'rotulagemLoaded', function() {
-        // Aguarda clique do usuário para rotular elementos
         if (window.__rotulagem_taxonomia_click) {
           document.removeEventListener('click', window.__rotulagem_taxonomia_click, true);
         }
         window.__rotulagem_taxonomia_click = function(e) {
-          // Evita rotular se clicar dentro do painel de rotulagem ou login
+          // BLOQUEIA clique só se painel existe
           if (
+            document.getElementById('taxo-model-missing') ||
             (document.getElementById('rotulagem-panel') && document.getElementById('rotulagem-panel').contains(e.target)) ||
             (document.getElementById('login-panel') && document.getElementById('login-panel').contains(e.target))
           ) return;
-
           var el = e.target;
           try {
             var selectorTripa = getSelectorTripa(el);
@@ -67,7 +84,6 @@
               text: el.innerText,
               html: el.outerHTML
             };
-            // Opções sugeridas
             var options = ["header","footer","menu","main","hero","conteúdo","rodapé","aside","article","banner"];
             if (data.contextHeadingsParagraphs && data.contextHeadingsParagraphs.length > 0) {
               data.contextHeadingsParagraphs.forEach(function(ctx) {
@@ -86,7 +102,7 @@
     });
   };
 
-  // --- EXPORTA RÓTULOS PARA TREINAMENTO ---
+  // ---- ENVIA EXEMPLOS PARA TREINAMENTO ----
   window.enviarRotulosParaTreinamento = function() {
     fetch(BACKEND_URL + '/api/treinamento', { method: 'POST' })
       .then(function(resp) { return resp.json(); })
@@ -102,18 +118,18 @@
       });
   };
 
-  // --- FLUXO PRINCIPAL ---
+  // ---- STATUS DO MODELO ----
   fetch(BACKEND_URL + '/api/model_status')
     .then(function(resp) { return resp.json(); })
     .then(function(status) {
       modelReady = !!status.model_trained;
       if (!modelReady) {
+        window.showModelMissingNotice();
         console.log('%c[Labelling] Ainda não há modelo treinado.', 'color:#b37b00;font-weight:bold;');
         console.log('%c[Labelling] Para começar, faça login com: window.loginTaxonomista()', 'color:#1a2e6b;');
         console.log('[Labelling] Após o login, clique em qualquer elemento da página para rotular exemplos.');
         console.log('%c[Labelling] Quando terminar, envie os exemplos para treinamento com:\nwindow.enviarRotulosParaTreinamento()', 'color:#207cc7;font-weight:bold;');
       } else {
-        // --- HABILITA O FLUXO AUTOMÁTICO DE TAXONOMIA POR CLIQUE ---
         document.addEventListener('click', function handleAutoTaxonomia(e) {
           if (isLoadingUtils) return;
           loadScriptOnce(UTILS_URL, 'utilsLoaded', function() {
@@ -136,7 +152,6 @@
               .then(function(resp) { return resp.json(); })
               .then(function(resp) {
                 if (!resp || !resp.sessao || resp.confidence < 0.8) {
-                  // Sugere rotulagem manual se não confiante
                   window.loginTaxonomista(function(){
                     window.startRotulagemUX();
                   });
@@ -157,6 +172,7 @@
     })
     .catch(function() {
       modelReady = false;
+      window.showModelMissingNotice();
       console.log('%c[Labelling] Falha ao consultar status do modelo. Tente novamente mais tarde.', 'color:#d42a2a;font-weight:bold;');
     });
 

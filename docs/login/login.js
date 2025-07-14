@@ -31,9 +31,7 @@
         fetch(USERS_URL)
           .then(function(resp) { return resp.json(); })
           .then(function(users) {
-            // ADAPTADO: aceita chaves login/senha (compatível com seu JSON atual)
             var found = users.find(function(u) {
-              // Aceita tanto login/senha quanto user/pass para máxima compatibilidade
               return (u.login === login && u.senha === pass) ||
                      (u.user  === login && u.pass  === pass);
             });

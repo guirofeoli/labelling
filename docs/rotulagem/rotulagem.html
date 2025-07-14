@@ -1,12 +1,13 @@
-<div id="rotulagem-panel" style="display:none">
-  <div class="rotulagem-modal-bg"></div>
-  <div class="rotulagem-modal">
-    <h3>Rotular Sessão</h3>
-    <div id="rotulagem-options"></div>
-    <input type="text" id="rotulagem-outro" placeholder="Outra sessão" style="display:none;margin-top:8px;width:98%;">
-    <div id="rotulagem-user-info" style="margin-top:10px;font-size:0.93em;color:#555;"></div>
-    <button id="rotulagem-salvar">Salvar</button>
-    <button id="rotulagem-fechar">Fechar</button>
-    <div id="rotulagem-status" style="margin-top:13px;font-size:0.98em;color:#156e16"></div>
+<div id="rotulagem-backdrop" class="rotulagem-backdrop"></div>
+<div id="rotulagem-panel" class="rotulagem-panel">
+  <div class="rotulagem-titulo"><b>Rotule esta sessão:</b></div>
+  <div class="rotulagem-msg-extra" id="rotulagem-msg-extra"></div>
+  <input id="rotulagem_input" type="text" list="rotulagem_options"
+         placeholder="Digite ou selecione uma sessão..." autocomplete="off"/>
+  <datalist id="rotulagem_options"></datalist>
+  <div class="rotulagem-actions">
+    <button id="rotulagem_salvar" class="rotulagem-btn salvar">Salvar</button>
+    <button id="rotulagem_cancelar" class="rotulagem-btn cancelar">Cancelar</button>
   </div>
-</div> 
+  <div id="rotulagem_msg" class="rotulagem-msg-erro"></div>
+</div>

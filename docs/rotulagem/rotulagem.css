@@ -1,24 +1,66 @@
-#rotulagem-panel {
-  position: fixed; z-index: 99999; left: 0; top: 0; width: 100vw; height: 100vh;
+/* Backdrop modal */
+.rotulagem-backdrop {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.54);
+  z-index: 99999998;
+  display: none;
 }
-.rotulagem-modal-bg {
-  position: absolute; width: 100vw; height: 100vh; left: 0; top: 0; background: rgba(0,0,0,0.38);
+
+#rotulagem-panel.rotulagem-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  padding: 26px 36px 22px 36px;
+  z-index: 99999999;
+  border-radius: 13px;
+  border: 1.7px solid #333;
+  box-shadow: 0 8px 38px #0006;
+  min-width: 340px;
+  font-family: sans-serif;
+  text-align: left;
+  display: none;
 }
-.rotulagem-modal {
-  position: absolute; left: 50%; top: 48%; transform: translate(-50%, -50%);
-  background: #fff; padding: 28px 32px 24px 32px; border-radius: 13px; box-shadow: 0 8px 32px #0008;
-  min-width: 320px; max-width: 98vw; font-family: sans-serif;
-  border: 1.5px solid #1b2845;
+.rotulagem-titulo {
+  font-size: 1.12em;
+  margin-bottom: 8px;
 }
-.rotulagem-modal h3 { margin-top: 0; }
-#rotulagem-options label {
-  display: block; margin: 9px 0 0 0; font-size: 1.07em; cursor:pointer;
+.rotulagem-msg-extra {
+  margin-bottom: 14px;
+  color: #666;
+  font-size: 1em;
 }
-#rotulagem-outro { padding: 4px 8px; font-size: 1em; border-radius: 6px; border:1px solid #ccc;}
-#rotulagem-salvar, #rotulagem-fechar {
-  margin-top: 19px; padding: 7px 26px; border-radius: 8px; border: none;
-  font-size: 1.07em; cursor:pointer;
+#rotulagem_input {
+  width: 97%;
+  font-size: 1.07em;
+  padding: 6px 9px;
+  border-radius: 6px;
+  border: 1.2px solid #bbb;
 }
-#rotulagem-salvar { background: #149C3B; color: #fff; }
-#rotulagem-fechar { background: #bbb; color: #fff; margin-left: 10px; }
-#rotulagem-status { min-height: 22px; }
+.rotulagem-actions {
+  margin-top: 18px;
+}
+.rotulagem-btn {
+  font-size: 1.1em;
+  padding: 5px 26px;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.rotulagem-btn.salvar {
+  background: #149C3B;
+  color: #fff;
+}
+.rotulagem-btn.cancelar {
+  background: #aaa;
+  color: #fff;
+  margin-left: 13px;
+  padding: 5px 16px;
+}
+.rotulagem-msg-erro {
+  margin-top: 10px;
+  color: red;
+}
