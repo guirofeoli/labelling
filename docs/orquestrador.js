@@ -2,9 +2,11 @@
   var UTILS_URL = 'https://guirofeoli.github.io/labelling/utils.js';
   var ROTULAGEM_URL = 'https://guirofeoli.github.io/labelling/rotulagem.js';
   var USERS_URL = 'https://raw.githubusercontent.com/guirofeoli/labelling/refs/heads/main/docs/users.json';
+  var BACKEND_URL = 'https://labelling-production.up.railway.app';
 
   var loggedUser = null;
   var isLoadingUtils = false;
+  var modelReady = false;
 
   console.log('[Orquestrador] Script carregado.');
 
@@ -69,6 +71,12 @@
     };
   }
 
+  function getDefaultSessions() {
+    return [
+      "header", "footer", "menu", "main", "hero", "conteúdo", "rodapé", "aside", "article", "banner"
+    ];
+  }
+
   function suggestManualLabel(data, options, msgExtra) {
     var suggest = document.createElement('div');
     suggest.style = 'background:#ffe9b5;padding:16px 18px;border:1px solid #e7ad00;position:fixed;top:12%;left:50%;transform:translateX(-50%);z-index:9999;border-radius:8px;min-width:330px;font-family:sans-serif;';
@@ -122,7 +130,22 @@
         };
         console.log('[Orquestrador] Dados coletados do clique:', data);
 
-        fetch('https://labelling.railway.internal/api/inteligencia', {
+        if (!modelReady) {
+          // Modelo ainda não existe: sempre rotulagem manual com opções default + headings + paragraphs do contexto
+          var options = getDefaultSessions();
+          if (data.contextHeadingsParagraphs && data.contextHeadingsParagraphs.length > 0) {
+            data.contextHeadingsParagraphs.forEach(function(ctx) {
+              options = options.concat((ctx.headings || []), (ctx.paragraphs || []));
+            });
+          }
+          // Remove duplicados
+          options = Array.from(new Set(options.filter(Boolean)));
+          suggestManualLabel(data, options, "Ainda não há modelo treinado.<br>É necessário rotular exemplos antes de treinar.");
+          return;
+        }
+
+        // Se modelo existe, fluxo normal:
+        fetch(BACKEND_URL + '/api/inteligencia', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
@@ -130,10 +153,6 @@
         .then(function(resp) { return resp.json(); })
         .then(function(resp) {
           console.log('[Orquestrador] Resposta backend:', resp);
-          if (resp && resp.no_model) {
-            suggestManualLabel(data, [], "Ainda não há modelo treinado.<br>É necessário rotular exemplos antes de treinar.");
-            return;
-          }
           if (!resp || !resp.sessao || resp.confidence < 0.8) {
             suggestManualLabel(data, resp.options || []);
           } else {
@@ -164,7 +183,21 @@
     }
     handleClick(e);
   };
-  document.addEventListener('click', window.__orquestrador_clickHandler, true);
+
+  // Checa modelo treinado ao carregar
+  fetch(BACKEND_URL + '/api/model_status')
+    .then(function(resp) { return resp.json(); })
+    .then(function(status) {
+      modelReady = !!status.model_trained;
+      if (!modelReady) {
+        console.warn('[Orquestrador] Nenhum modelo treinado, fluxos automáticos desativados até treinamento!');
+      }
+      document.addEventListener('click', window.__orquestrador_clickHandler, true);
+    })
+    .catch(function() {
+      modelReady = false;
+      document.addEventListener('click', window.__orquestrador_clickHandler, true);
+    });
 
   console.log('[Orquestrador] Pronto para taxonomizar! Clique em qualquer elemento.');
 })();
