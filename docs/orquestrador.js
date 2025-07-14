@@ -1,8 +1,9 @@
 (function() {
-  var UTILS_URL = 'https://guirofeoli.github.io/labelling/utils.js';
-  var ROTULAGEM_URL = 'https://guirofeoli.github.io/labelling/rotulagem.js';
-  var USERS_URL = 'https://raw.githubusercontent.com/guirofeoli/labelling/refs/heads/main/docs/users.json';
-  var BACKEND_URL = 'https://labelling-production.up.railway.app';
+  var UTILS_URL      = 'https://guirofeoli.github.io/labelling/utils.js';
+  var ROTULAGEM_URL  = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.js';
+  var LOGIN_URL      = 'https://guirofeoli.github.io/labelling/login/login.js';
+  var USERS_URL      = 'https://raw.githubusercontent.com/guirofeoli/labelling/refs/heads/main/docs/users.json';
+  var BACKEND_URL    = 'https://labelling-production.up.railway.app';
 
   var loggedUser = null;
   var isLoadingUtils = false;
@@ -30,81 +31,37 @@
     document.head.appendChild(script);
   }
 
-  function showLoginModal(onSuccess) {
-    var modal = document.createElement('div');
-    modal.style = 'background:#fff;padding:20px 24px 16px 24px;border:1.2px solid #333;position:fixed;top:30%;left:50%;transform:translateX(-50%);z-index:9999;border-radius:8px;min-width:280px;font-family:sans-serif;';
-    modal.innerHTML = `
-      <h3 style="margin:0 0 10px 0;">Login para rotulagem</h3>
-      <input type="text" id="userLogin" placeholder="Usuário" style="display:block;margin-bottom:10px;width:98%">
-      <input type="password" id="userPass" placeholder="Senha" style="display:block;margin-bottom:10px;width:98%">
-      <button id="loginBtn" style="margin-top:6px;">Entrar</button>
-      <button id="cancelLoginBtn" style="margin-left:10px;">Cancelar</button>
-      <div id="loginMsg" style="color:red;margin-top:10px;"></div>
-    `;
-    document.body.appendChild(modal);
-
-    document.getElementById('cancelLoginBtn').onclick = function() {
-      document.body.removeChild(modal);
-    };
-
-    document.getElementById('loginBtn').onclick = function() {
-      var login = document.getElementById('userLogin').value;
-      var pass = document.getElementById('userPass').value;
-      fetch(USERS_URL)
-        .then(function(resp) { return resp.json(); })
-        .then(function(users) {
-          var found = users.find(function(u) {
-            return u.user === login && u.pass === pass;
-          });
-          if (found) {
-            loggedUser = found.user;
-            document.body.removeChild(modal);
-            console.log('[Orquestrador] Login realizado:', loggedUser);
-            if (typeof onSuccess === 'function') onSuccess();
-          } else {
-            document.getElementById('loginMsg').textContent = 'Usuário ou senha inválidos.';
-          }
-        })
-        .catch(function(e) {
-          document.getElementById('loginMsg').textContent = 'Erro ao validar usuário: ' + e;
-        });
-    };
-  }
-
   function getDefaultSessions() {
     return [
       "header", "footer", "menu", "main", "hero", "conteúdo", "rodapé", "aside", "article", "banner"
     ];
   }
 
+  function openManualLabelling(data, options, msgExtra) {
+    // Sempre carrega rotulagem.js que carrega o HTML e CSS do painel
+    loadScriptOnce(ROTULAGEM_URL, 'rotulagemLoaded', function() {
+      window.openRotulagemModal(data, options || [], loggedUser, msgExtra);
+    });
+  }
+
+  function askForLogin(onSuccess) {
+    loadScriptOnce(LOGIN_URL, 'loginLoaded', function() {
+      window.openLoginModal(function(user){
+        loggedUser = user;
+        if (typeof onSuccess === 'function') onSuccess();
+      }, USERS_URL);
+    });
+  }
+
   function suggestManualLabel(data, options, msgExtra) {
-    var suggest = document.createElement('div');
-    suggest.style = 'background:#ffe9b5;padding:16px 18px;border:1px solid #e7ad00;position:fixed;top:12%;left:50%;transform:translateX(-50%);z-index:9999;border-radius:8px;min-width:330px;font-family:sans-serif;';
-    suggest.innerHTML = `
-      <div><strong>${msgExtra ? msgExtra : 'Sessão não reconhecida com confiança suficiente.'}</strong></div>
-      <div style="margin:10px 0 13px 0;">Se você for um usuário autorizado, clique abaixo para rotular manualmente.</div>
-      <button id="manualLabelBtn" style="background:#149C3B;color:#fff;padding:6px 22px;border:none;border-radius:6px;">Rotular sessão</button>
-      <button id="closeSuggestBtn" style="margin-left:10px;background:#aaa;color:#fff;padding:6px 18px;border:none;border-radius:6px;">Fechar</button>
-    `;
-    document.body.appendChild(suggest);
-    document.getElementById('closeSuggestBtn').onclick = function() {
-      document.body.removeChild(suggest);
-    };
-    document.getElementById('manualLabelBtn').onclick = function() {
-      if (loggedUser) {
-        document.body.removeChild(suggest);
-        loadScriptOnce(ROTULAGEM_URL, 'rotulagemLoaded', function() {
-          window.openRotulagemModal(data, options || [], loggedUser);
-        });
-      } else {
-        showLoginModal(function() {
-          document.body.removeChild(suggest);
-          loadScriptOnce(ROTULAGEM_URL, 'rotulagemLoaded', function() {
-            window.openRotulagemModal(data, options || [], loggedUser);
-          });
-        });
-      }
-    };
+    // Modal apenas pergunta login se não autenticado, depois rotulagem!
+    if (loggedUser) {
+      openManualLabelling(data, options, msgExtra);
+    } else {
+      askForLogin(function() {
+        openManualLabelling(data, options, msgExtra);
+      });
+    }
   }
 
   function handleClick(e) {
@@ -115,7 +72,10 @@
     loadScriptOnce(UTILS_URL, 'utilsLoaded', function() {
       try {
         var el = e.target;
-        if (typeof getElementRelativePosition !== 'function' || typeof getSelectorTripa !== 'function' || typeof getFullSelector !== 'function' || typeof getHeadingAndParagraphContext !== 'function') {
+        if (typeof getElementRelativePosition !== 'function' ||
+            typeof getSelectorTripa !== 'function' ||
+            typeof getFullSelector !== 'function' ||
+            typeof getHeadingAndParagraphContext !== 'function') {
           alert('[Orquestrador] utils.js não carregado corretamente.');
           return;
         }
@@ -131,20 +91,17 @@
         console.log('[Orquestrador] Dados coletados do clique:', data);
 
         if (!modelReady) {
-          // Modelo ainda não existe: sempre rotulagem manual com opções default + headings + paragraphs do contexto
           var options = getDefaultSessions();
           if (data.contextHeadingsParagraphs && data.contextHeadingsParagraphs.length > 0) {
             data.contextHeadingsParagraphs.forEach(function(ctx) {
               options = options.concat((ctx.headings || []), (ctx.paragraphs || []));
             });
           }
-          // Remove duplicados
           options = Array.from(new Set(options.filter(Boolean)));
           suggestManualLabel(data, options, "Ainda não há modelo treinado.<br>É necessário rotular exemplos antes de treinar.");
           return;
         }
 
-        // Se modelo existe, fluxo normal:
         fetch(BACKEND_URL + '/api/inteligencia', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -171,10 +128,10 @@
   // Evita múltiplos listeners
   document.removeEventListener('click', window.__orquestrador_clickHandler, true);
   window.__orquestrador_clickHandler = function(e) {
+    // Não dispara rotulagem/login se clicou em painel/modal
     var modals = [
-      document.getElementById('loginBtn')?.closest('div'),
-      document.getElementById('manualLabelBtn')?.closest('div'),
-      document.getElementById('fecharModal')?.closest('div')
+      document.getElementById('login-panel'),
+      document.getElementById('rotulagem-panel')
     ];
     for (var i=0; i<modals.length; i++) {
       if (modals[i] && modals[i].contains(e.target)) {

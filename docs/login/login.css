@@ -1,0 +1,21 @@
+#login-panel {
+  position: fixed; z-index: 99999; left: 0; top: 0; width: 100vw; height: 100vh;
+}
+.login-modal-bg {
+  position: absolute; width: 100vw; height: 100vh; left: 0; top: 0; background: rgba(0,0,0,0.32);
+}
+.login-modal {
+  position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%);
+  background: #fff; padding: 26px 28px 22px 28px; border-radius: 12px; box-shadow: 0 8px 32px #0008;
+  min-width: 270px; max-width: 96vw; font-family: sans-serif; border: 1.3px solid #223;
+}
+.login-modal h3 { margin-top: 0; }
+#userLogin, #userPass {
+  display:block; margin-bottom:10px; width:98%; padding:5px 8px; font-size:1.06em; border-radius:6px; border:1px solid #ccc;
+}
+#loginMsg { color: #b00; min-height:20px; font-size:0.98em; margin-bottom:10px;}
+#loginBtn, #cancelLoginBtn {
+  margin-top: 6px; padding: 6px 20px; border-radius: 7px; border: none; font-size: 1.05em; cursor:pointer;
+}
+#loginBtn { background: #149C3B; color: #fff; }
+#cancelLoginBtn { background: #aaa; color: #fff; margin-left: 10px; }

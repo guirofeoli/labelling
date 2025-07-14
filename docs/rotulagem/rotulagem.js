@@ -2,7 +2,7 @@
   // Carrega HTML e CSS se não carregados ainda
   function loadRotulagemUI(callback) {
     if (document.getElementById('rotulagem-panel')) return callback();
-    fetch('https://guirofeoli.github.io/labelling/rotulagem.html')
+    fetch('https://guirofeoli.github.io/labelling/rotulagem/rotulagem.html')
       .then(r => r.text())
       .then(html => {
         document.body.insertAdjacentHTML('beforeend', html);
@@ -11,7 +11,7 @@
           var link = document.createElement('link');
           link.id = cssId;
           link.rel = 'stylesheet';
-          link.href = 'https://guirofeoli.github.io/labelling/rotulagem.css';
+          link.href = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.css';
           document.head.appendChild(link);
         }
         callback();
@@ -19,10 +19,11 @@
   }
 
   // Exibe painel de rotulagem
-  window.openRotulagemModal = function(data, options, loggedUser) {
+  window.openRotulagemModal = function(data, options, loggedUser, msgExtra) {
     loadRotulagemUI(function() {
       var panel = document.getElementById('rotulagem-panel');
       panel.style.display = '';
+      document.getElementById('rotulagem-status').textContent = msgExtra || '';
       // Monta opções únicas
       var opts = (options || []).filter(function(x, i, arr){ return x && arr.indexOf(x) === i; });
       var html = '';

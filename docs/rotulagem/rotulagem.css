@@ -10,7 +10,7 @@
   min-width: 320px; max-width: 98vw; font-family: sans-serif;
   border: 1.5px solid #1b2845;
 }
-#rotulagem-modal h3 { margin-top: 0; }
+.rotulagem-modal h3 { margin-top: 0; }
 #rotulagem-options label {
   display: block; margin: 9px 0 0 0; font-size: 1.07em; cursor:pointer;
 }
