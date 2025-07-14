@@ -7,9 +7,8 @@
 
   var loggedUser = null;
   var modelReady = false;
-  var isRotulagem = false;
 
-  // Modal de modelo ausente (global)
+  // Modal informativo quando não há modelo treinado
   window.showModelMissingNotice = function() {
     if (document.getElementById('taxo-model-missing')) return;
     var div = document.createElement('div');
@@ -23,7 +22,7 @@
     if (div) div.parentNode.removeChild(div);
   };
 
-  // Loader de scripts
+  // Loader
   function loadScriptOnce(url, flag, callback) {
     if (window[flag]) return callback && callback();
     var script = document.createElement('script');
@@ -38,36 +37,47 @@
     document.head.appendChild(script);
   }
 
-  // Login global: chama painel e libera rotulagem
+  // Login + inicia rotulagem ao sucesso
   window.loginTaxonomista = function(callbackAfterLogin) {
     loadScriptOnce(LOGIN_URL, 'loginLoaded', function() {
       window.openLoginModal(function(user){
         loggedUser = user;
-        window.hideModelMissingNotice();
-        isRotulagem = true;
-        if (typeof callbackAfterLogin === 'function') callbackAfterLogin(user);
+        window.hideModelMissingNotice && window.hideModelMissingNotice();
         window.startRotulagemUX && window.startRotulagemUX();
+        if (typeof callbackAfterLogin === 'function') callbackAfterLogin(user);
       }, USERS_URL);
     });
   };
 
-  // Inicia rotulagem: adiciona clique e monta sugestões contextuais
+  // Ativa rotulagem manual: clique libera painel de sugestão
   window.startRotulagemUX = function() {
+    window.hideModelMissingNotice && window.hideModelMissingNotice(); // Remove modelo ausente SEMPRE
     loadScriptOnce(UTILS_URL, 'utilsLoaded', function() {
       loadScriptOnce(ROTULAGEM_URL, 'rotulagemLoaded', function() {
         if (window.__rotulagem_taxonomia_click) {
           document.removeEventListener('click', window.__rotulagem_taxonomia_click, true);
         }
         window.__rotulagem_taxonomia_click = function(e) {
-          // Bloqueia clique se painel/modal aberto
+          // NÃO abrir se painel/modal já está aberto
           if (
             document.getElementById('taxo-model-missing') ||
             document.getElementById('rotulagem-panel') ||
             document.getElementById('login-panel')
-          ) return;
+          ) {
+            // LOG extra para debug
+            if (document.getElementById('taxo-model-missing')) {
+              console.log('[DEBUG] Modelo ausente ainda presente. Rotulagem bloqueada.');
+            }
+            if (document.getElementById('rotulagem-panel')) {
+              console.log('[DEBUG] Painel de rotulagem já aberto.');
+            }
+            if (document.getElementById('login-panel')) {
+              console.log('[DEBUG] Painel de login aberto.');
+            }
+            return;
+          }
           var el = e.target;
           try {
-            // Usa utils.js para extrair contexto e sugestões
             var selectorTripa = getSelectorTripa(el);
             var data = {
               position: getElementRelativePosition(el),
@@ -84,6 +94,7 @@
               });
             }
             options = Array.from(new Set(options.filter(Boolean)));
+            console.log('[Rotulagem-DEBUG] Chamando openRotulagemModal:', {data, options, loggedUser});
             window.openRotulagemModal(data, options, loggedUser, 'Rotule este exemplo e salve!');
           } catch (err) {
             console.error('Erro ao preparar dados para rotulagem:', err);
@@ -95,7 +106,7 @@
     });
   };
 
-  // Envia exemplos para treinamento
+  // Envio de exemplos para treinamento
   window.enviarRotulosParaTreinamento = function() {
     fetch(BACKEND_URL + '/api/treinamento', { method: 'POST' })
       .then(function(resp) { return resp.json(); })
@@ -111,66 +122,25 @@
       });
   };
 
-  // Verifica status do modelo ao carregar o orquestrador
+  // Verifica modelo treinado ao carregar o orquestrador
   fetch(BACKEND_URL + '/api/model_status')
     .then(function(resp) { return resp.json(); })
     .then(function(status) {
       modelReady = !!status.model_trained;
       if (!modelReady) {
         window.showModelMissingNotice();
-        isRotulagem = false;
         console.log('%c[Labelling] Ainda não há modelo treinado.', 'color:#b37b00;font-weight:bold;');
         console.log('%c[Labelling] Para começar, faça login com: window.loginTaxonomista()', 'color:#1a2e6b;');
         console.log('[Labelling] Após o login, clique em qualquer elemento da página para rotular exemplos.');
         console.log('%c[Labelling] Quando terminar, envie os exemplos para treinamento com:\nwindow.enviarRotulosParaTreinamento()', 'color:#207cc7;font-weight:bold;');
       } else {
-        // Se houver modelo treinado, pode taxonomizar normalmente ao clicar
-        document.addEventListener('click', function handleAutoTaxonomia(e) {
-          if (!modelReady) return; // só ativa com modelo treinado!
-          if (document.getElementById('rotulagem-panel') || document.getElementById('login-panel')) return;
-          loadScriptOnce(UTILS_URL, 'utilsLoaded', function() {
-            var el = e.target;
-            try {
-              var selectorTripa = getSelectorTripa(el);
-              var data = {
-                position: getElementRelativePosition(el),
-                selectorTripa: selectorTripa,
-                contextHeadingsParagraphs: getHeadingAndParagraphContext(selectorTripa),
-                fullSelector: getFullSelector(el),
-                text: el.innerText,
-                html: el.outerHTML
-              };
-              fetch(BACKEND_URL + '/api/inteligencia', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-              })
-              .then(function(resp) { return resp.json(); })
-              .then(function(resp) {
-                if (!resp || !resp.sessao || resp.confidence < 0.8) {
-                  // Se não houver confiança, sugere rotulagem manual
-                  window.loginTaxonomista(function(){
-                    window.startRotulagemUX();
-                  });
-                } else {
-                  console.log('[Taxonomia] Sessão detectada:', resp.sessao, 'Confiança:', resp.confidence);
-                }
-              })
-              .catch(function(err) {
-                alert('Erro ao consultar backend: ' + err);
-              });
-            } catch (e) {
-              console.error('[Orquestrador] Erro ao processar clique:', e);
-            }
-          });
-        }, true);
+        // Quando modelo pronto, ativa taxonomia automática (caso queira no futuro)
         console.log('%c[Orquestrador] Pronto para taxonomizar! Clique em qualquer elemento.', 'color:#1b751b;font-weight:bold;');
       }
     })
     .catch(function() {
       modelReady = false;
       window.showModelMissingNotice();
-      isRotulagem = false;
       console.log('%c[Labelling] Falha ao consultar status do modelo. Tente novamente mais tarde.', 'color:#d42a2a;font-weight:bold;');
     });
 
