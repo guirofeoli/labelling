@@ -4,8 +4,10 @@ import json
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestClassifier
 
-DATASET = os.path.join('data', 'exemplos.json')
-MODEL_DIR = 'models'
+# Caminhos relativos à raiz do projeto (um nível acima deste arquivo)
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+DATASET = os.path.join(BASE_DIR, 'data', 'exemplos.json')
+MODEL_DIR = os.path.join(BASE_DIR, 'models')
 VECTORIZER_PATH = os.path.join(MODEL_DIR, 'vectorizer.joblib')
 MODEL_PATH = os.path.join(MODEL_DIR, 'rf_model.joblib')
 
