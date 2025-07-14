@@ -15,7 +15,6 @@ function getElementRelativePosition(el) {
   };
 }
 
-// Mais minucioso: tag, #id, todas .classes, :nth-child
 function getFullSelector(el) {
   if (!(el instanceof Element)) return '';
   var path = [];
@@ -36,7 +35,6 @@ function getFullSelector(el) {
   return path.join(' > ');
 }
 
-// selectorTripa = lista de seletores do elemento até o topo
 function getSelectorTripa(el) {
   var chain = [];
   var current = el;
@@ -67,15 +65,14 @@ function getSelectorTripa(el) {
   return chain;
 }
 
-// NOVA: Dado o array de seletores (da tripa), retorna contexto headings/parágrafos > 18 caracteres
 function getHeadingAndParagraphContext(selectorTripa) {
   var context = [];
+  var seenHeadings = new Set();
+  var seenParagraphs = new Set();
   selectorTripa.forEach(function(item) {
     var selector = item.selector;
     var el = null;
-    try {
-      el = document.querySelector(selector);
-    } catch (e) {}
+    try { el = document.querySelector(selector); } catch (e) {}
     if (el) {
       var headings = [];
       var paragraphs = [];
@@ -83,13 +80,19 @@ function getHeadingAndParagraphContext(selectorTripa) {
       var htags = el.querySelectorAll('h1,h2,h3,h4,h5,h6');
       for (var i = 0; i < htags.length; i++) {
         var t = htags[i].innerText.trim();
-        if (t.length > 0) headings.push(t);
+        if (t.length > 0 && !seenHeadings.has(t)) {
+          headings.push(t);
+          seenHeadings.add(t);
+        }
       }
-      // Parágrafos com texto > 18 caracteres
+      // Parágrafos com texto > 18 caracteres (únicos)
       var ps = el.querySelectorAll('p');
       for (var i = 0; i < ps.length; i++) {
         var pt = ps[i].innerText.trim();
-        if (pt.length > 18) paragraphs.push(pt);
+        if (pt.length > 18 && !seenParagraphs.has(pt)) {
+          paragraphs.push(pt);
+          seenParagraphs.add(pt);
+        }
       }
       context.push({
         selector: selector,
@@ -100,3 +103,9 @@ function getHeadingAndParagraphContext(selectorTripa) {
   });
   return context;
 }
+
+// Exporte no window para máxima compatibilidade
+window.getElementRelativePosition = getElementRelativePosition;
+window.getFullSelector = getFullSelector;
+window.getSelectorTripa = getSelectorTripa;
+window.getHeadingAndParagraphContext = getHeadingAndParagraphContext;

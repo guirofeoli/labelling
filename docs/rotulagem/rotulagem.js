@@ -1,7 +1,17 @@
 (function(){
-  // Carrega HTML e CSS do modal de rotulagem, só 1 vez
+  // Remove modais/backdrops antigos
+  function removeOldRotulagemModal() {
+    var p = document.getElementById('rotulagem-panel');
+    if (p && p.parentNode) p.parentNode.removeChild(p);
+    var b = document.getElementById('rotulagem-backdrop');
+    if (b && b.parentNode) b.parentNode.removeChild(b);
+    // Remove ESC
+    document.onkeydown = null;
+  }
+
   function loadRotulagemPanel(callback) {
-    if (document.getElementById('rotulagem-panel')) return callback();
+    // Limpa antes de adicionar novo!
+    removeOldRotulagemModal();
     // CSS
     var cssId = 'rotulagem-css';
     if (!document.getElementById(cssId)) {
@@ -49,19 +59,19 @@
       inp.value = '';
       inp.focus();
 
-      // Cancela
+      // Fecha/cancela painel e remove ESC
       function closeModal() {
-        panel.style.display = 'none';
-        backdrop.style.display = 'none';
+        removeOldRotulagemModal();
       }
       document.getElementById('rotulagem_cancelar').onclick = closeModal;
-      // Fechar com ESC
+      // Fechar com ESC (e só ESC do modal)
       document.onkeydown = function(ev) {
-        if (ev.key === "Escape") closeModal();
+        if (ev.key === "Escape") {
+          closeModal();
+        }
       };
-      // Bloqueia clique no backdrop (opcional: se quiser fechar ao clicar fora, use closeModal)
       backdrop.onclick = function(e) {
-        // nada (não fecha ao clicar fora)
+        // nada, bloqueia clique fora
       };
 
       document.getElementById('rotulagem_salvar').onclick = function() {
