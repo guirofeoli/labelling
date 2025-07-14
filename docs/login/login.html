@@ -1,11 +1,11 @@
+<div id="login-backdrop" style="display:none"></div>
 <div id="login-panel" style="display:none">
-  <div class="login-modal-bg"></div>
-  <div class="login-modal">
-    <h3>Login para rotulagem</h3>
-    <input type="text" id="userLogin" placeholder="Usuário">
-    <input type="password" id="userPass" placeholder="Senha">
-    <div id="loginMsg"></div>
-    <button id="loginBtn">Entrar</button>
-    <button id="cancelLoginBtn">Cancelar</button>
+  <h3>Login para Rotulagem</h3>
+  <input type="text" id="login_input_user" placeholder="Usuário" autocomplete="username">
+  <input type="password" id="login_input_pass" placeholder="Senha" autocomplete="current-password">
+  <div id="login_msg" style="color:red;margin-top:6px"></div>
+  <div style="margin-top:18px;">
+    <button id="login_entrar">Entrar</button>
+    <button id="login_cancelar" style="margin-left:10px;">Cancelar</button>
   </div>
 </div>

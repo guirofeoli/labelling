@@ -1,49 +1,94 @@
-(function(){
-  function loadLoginUI(callback) {
-    if (document.getElementById('login-panel')) return callback();
+(function() {
+  // Remove painel/backdrop de login antigo
+  function removeOldLoginPanel() {
+    var p = document.getElementById('login-panel');
+    if (p && p.parentNode) p.parentNode.removeChild(p);
+    var b = document.getElementById('login-backdrop');
+    if (b && b.parentNode) b.parentNode.removeChild(b);
+    document.onkeydown = null;
+  }
+
+  // Carrega login.html e login.css só uma vez
+  function loadLoginPanel(callback) {
+    removeOldLoginPanel();
+    // CSS
+    var cssId = 'login-css';
+    if (!document.getElementById(cssId)) {
+      var link = document.createElement('link');
+      link.id = cssId;
+      link.rel = 'stylesheet';
+      link.href = 'https://guirofeoli.github.io/labelling/login/login.css';
+      document.head.appendChild(link);
+    }
+    // HTML
     fetch('https://guirofeoli.github.io/labelling/login/login.html')
       .then(r => r.text())
       .then(html => {
-        document.body.insertAdjacentHTML('beforeend', html);
-        var cssId = 'login-css';
-        if (!document.getElementById(cssId)) {
-          var link = document.createElement('link');
-          link.id = cssId;
-          link.rel = 'stylesheet';
-          link.href = 'https://guirofeoli.github.io/labelling/login/login.css';
-          document.head.appendChild(link);
-        }
-        callback();
+        var wrapper = document.createElement('div');
+        wrapper.innerHTML = html;
+        document.body.appendChild(wrapper.firstElementChild); // backdrop
+        document.body.appendChild(wrapper.lastElementChild);  // painel
+        callback && callback();
       });
   }
 
-  window.openLoginModal = function(onSuccess, USERS_URL) {
-    loadLoginUI(function() {
+  // Abre painel de login
+  window.openLoginModal = function(onSuccess, usersUrl) {
+    usersUrl = usersUrl || 'https://raw.githubusercontent.com/guirofeoli/labelling/refs/heads/main/docs/users.json';
+    loadLoginPanel(function() {
       var panel = document.getElementById('login-panel');
+      var backdrop = document.getElementById('login-backdrop');
       panel.style.display = '';
-      document.getElementById('loginMsg').textContent = '';
-      document.getElementById('cancelLoginBtn').onclick = function() {
-        panel.style.display = 'none';
+      backdrop.style.display = '';
+
+      var inpUser = document.getElementById('login_input_user');
+      var inpPass = document.getElementById('login_input_pass');
+      var msg = document.getElementById('login_msg');
+      inpUser.value = '';
+      inpPass.value = '';
+      inpUser.focus();
+      msg.textContent = '';
+
+      // Cancela
+      function closeModal() {
+        removeOldLoginPanel();
+      }
+      document.getElementById('login_cancelar').onclick = closeModal;
+      // ESC fecha
+      document.onkeydown = function(ev) {
+        if (ev.key === "Escape") closeModal();
       };
-      document.getElementById('loginBtn').onclick = function() {
-        var login = document.getElementById('userLogin').value;
-        var pass = document.getElementById('userPass').value;
-        fetch(USERS_URL)
-          .then(function(resp) { return resp.json(); })
-          .then(function(users) {
+      backdrop.onclick = function(e) {
+        // não fecha ao clicar fora
+      };
+
+      // Submete login
+      document.getElementById('login_entrar').onclick = function() {
+        var login = inpUser.value.trim();
+        var senha = inpPass.value;
+        if (!login || !senha) {
+          msg.textContent = "Preencha login e senha.";
+          return;
+        }
+        fetch(usersUrl)
+          .then(r => r.json())
+          .then(users => {
+            // Aceita tanto "login"/"senha" quanto "user"/"pass"
             var found = users.find(function(u) {
-              return (u.login === login && u.senha === pass) ||
-                     (u.user  === login && u.pass  === pass);
+              return (
+                (u.login === login && u.senha === senha) ||
+                (u.user === login && u.pass === senha)
+              );
             });
             if (found) {
-              panel.style.display = 'none';
-              if (typeof onSuccess === 'function') onSuccess(found.login || found.user);
+              closeModal();
+              if (typeof onSuccess === 'function') onSuccess(login);
             } else {
-              document.getElementById('loginMsg').textContent = 'Usuário ou senha inválidos.';
+              msg.textContent = 'Usuário ou senha inválidos.';
             }
           })
-          .catch(function(e) {
-            document.getElementById('loginMsg').textContent = 'Erro ao validar usuário: ' + e;
+          .catch(function(e){
+            msg.textContent = 'Erro ao validar usuário: ' + e;
           });
       };
     });
