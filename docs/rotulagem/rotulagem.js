@@ -5,12 +5,11 @@
     if (p && p.parentNode) p.parentNode.removeChild(p);
     var b = document.getElementById('rotulagem-backdrop');
     if (b && b.parentNode) b.parentNode.removeChild(b);
-    // Remove ESC
     document.onkeydown = null;
   }
 
+  // Carrega rotulagem.html e rotulagem.css só uma vez
   function loadRotulagemPanel(callback) {
-    // Limpa antes de adicionar novo!
     removeOldRotulagemModal();
     // CSS
     var cssId = 'rotulagem-css';
@@ -29,12 +28,13 @@
         wrapper.innerHTML = html;
         document.body.appendChild(wrapper.firstElementChild); // backdrop
         document.body.appendChild(wrapper.lastElementChild);  // painel
-        callback();
+        callback && callback();
       });
   }
 
+  // Abre painel de rotulagem
   window.openRotulagemModal = function(data, options, loggedUser, msgExtra) {
-    window.hideModelMissingNotice && window.hideModelMissingNotice();
+    removeOldRotulagemModal();
 
     loadRotulagemPanel(function() {
       var panel = document.getElementById('rotulagem-panel');
@@ -59,16 +59,14 @@
       inp.value = '';
       inp.focus();
 
-      // Fecha/cancela painel e remove ESC
+      // Cancela
       function closeModal() {
         removeOldRotulagemModal();
       }
       document.getElementById('rotulagem_cancelar').onclick = closeModal;
-      // Fechar com ESC (e só ESC do modal)
+      // ESC fecha
       document.onkeydown = function(ev) {
-        if (ev.key === "Escape") {
-          closeModal();
-        }
+        if (ev.key === "Escape") closeModal();
       };
       backdrop.onclick = function(e) {
         // nada, bloqueia clique fora

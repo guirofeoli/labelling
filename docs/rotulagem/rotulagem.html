@@ -1,13 +1,12 @@
-<div id="rotulagem-backdrop" class="rotulagem-backdrop"></div>
-<div id="rotulagem-panel" class="rotulagem-panel">
-  <div class="rotulagem-titulo"><b>Rotule esta sessão:</b></div>
-  <div class="rotulagem-msg-extra" id="rotulagem-msg-extra"></div>
-  <input id="rotulagem_input" type="text" list="rotulagem_options"
-         placeholder="Digite ou selecione uma sessão..." autocomplete="off"/>
+<div id="rotulagem-backdrop" style="display:none"></div>
+<div id="rotulagem-panel" style="display:none">
+  <h3>Rotular Sessão do Elemento</h3>
+  <div id="rotulagem-msg-extra" style="margin-bottom:10px;color:#444"></div>
+  <input type="text" id="rotulagem_input" placeholder="Nome da sessão" list="rotulagem_options" autocomplete="off">
   <datalist id="rotulagem_options"></datalist>
-  <div class="rotulagem-actions">
-    <button id="rotulagem_salvar" class="rotulagem-btn salvar">Salvar</button>
-    <button id="rotulagem_cancelar" class="rotulagem-btn cancelar">Cancelar</button>
+  <div id="rotulagem_msg" style="color:red;margin-top:7px"></div>
+  <div style="margin-top:20px;">
+    <button id="rotulagem_salvar">Salvar</button>
+    <button id="rotulagem_cancelar" style="margin-left:10px;">Cancelar</button>
   </div>
-  <div id="rotulagem_msg" class="rotulagem-msg-erro"></div>
 </div>
