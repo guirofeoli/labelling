@@ -1,7 +1,9 @@
 import os
 import joblib
 
-MODEL_DIR = 'models'
+# Caminhos relativos à raiz do projeto (um nível acima deste arquivo)
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+MODEL_DIR = os.path.join(BASE_DIR, 'models')
 VECTORIZER_PATH = os.path.join(MODEL_DIR, 'vectorizer.joblib')
 MODEL_PATH = os.path.join(MODEL_DIR, 'rf_model.joblib')
 COMMON_SESSIONS = [
@@ -16,7 +18,6 @@ def load_model():
     return vectorizer, model
 
 def extract_text_features(data):
-    # Extrai textos relevantes do payload (ajuste conforme seu front)
     parts = []
     if 'text' in data and data['text']:
         parts.append(data['text'])
