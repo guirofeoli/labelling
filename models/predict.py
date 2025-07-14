@@ -1,5 +1,5 @@
-import joblib
 import os
+import joblib
 
 MODEL_DIR = 'models'
 VECTORIZER_PATH = os.path.join(MODEL_DIR, 'vectorizer.joblib')
@@ -9,11 +9,14 @@ COMMON_SESSIONS = [
 ]
 
 def load_model():
+    if not (os.path.exists(VECTORIZER_PATH) and os.path.exists(MODEL_PATH)):
+        raise FileNotFoundError("Modelo ainda não treinado.")
     vectorizer = joblib.load(VECTORIZER_PATH)
     model = joblib.load(MODEL_PATH)
     return vectorizer, model
 
 def extract_text_features(data):
+    # Extrai textos relevantes do payload (ajuste conforme seu front)
     parts = []
     if 'text' in data and data['text']:
         parts.append(data['text'])
@@ -27,6 +30,8 @@ def predict_session(data):
     try:
         vectorizer, model = load_model()
         text = extract_text_features(data)
+        if not text.strip():
+            return {'sessao': None, 'confidence': 0.0, 'options': COMMON_SESSIONS}
         X = vectorizer.transform([text])
         pred = model.predict(X)[0]
         proba = max(model.predict_proba(X)[0])
