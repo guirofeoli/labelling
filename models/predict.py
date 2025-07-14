@@ -39,12 +39,21 @@ def predict_session(data):
         return {
             'sessao': sessao,
             'confidence': float(proba),
-            'options': options
+            'options': options,
+            'no_model': False
+        }
+    except FileNotFoundError:
+        return {
+            'sessao': None,
+            'confidence': 0.0,
+            'options': [],
+            'no_model': True
         }
     except Exception as e:
         print("Erro em predict_session:", e)
         return {
             'sessao': None,
             'confidence': 0.0,
-            'options': COMMON_SESSIONS
+            'options': [],
+            'no_model': True
         }
