@@ -1,9 +1,7 @@
 import os
 import joblib
 
-# Caminhos relativos à raiz do projeto (um nível acima deste arquivo)
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-MODEL_DIR = os.path.join(BASE_DIR, 'models')
+MODEL_DIR = 'models'
 VECTORIZER_PATH = os.path.join(MODEL_DIR, 'vectorizer.joblib')
 MODEL_PATH = os.path.join(MODEL_DIR, 'rf_model.joblib')
 COMMON_SESSIONS = [
