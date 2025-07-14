@@ -1,9 +1,10 @@
 from flask import Flask, request, jsonify
-import os, json
+import os
+import json
 from models.predict import predict_session
 from models.treinamento import treinar_modelo
 
-DATASET = 'data/exemplos.json'
+DATASET = os.path.join('data', 'exemplos.json')
 
 app = Flask(__name__)
 
@@ -15,23 +16,30 @@ def inteligencia():
 
 @app.route('/api/rotulo', methods=['POST'])
 def rotulo():
-    # Salva o exemplo rotulado para re-treino
     exemplo = request.json
+    if not os.path.exists('data'):
+        os.makedirs('data')
     if not os.path.exists(DATASET):
         exemplos = []
     else:
-        with open(DATASET, 'r') as f:
-            exemplos = json.load(f)
+        with open(DATASET, 'r', encoding='utf-8') as f:
+            try:
+                exemplos = json.load(f)
+            except Exception:
+                exemplos = []
     exemplos.append(exemplo)
-    with open(DATASET, 'w') as f:
-        json.dump(exemplos, f)
+    with open(DATASET, 'w', encoding='utf-8') as f:
+        json.dump(exemplos, f, ensure_ascii=False, indent=2)
     return jsonify({'ok': True, 'msg': 'Exemplo salvo para treino', 'total': len(exemplos)})
 
 @app.route('/api/treinamento', methods=['POST'])
 def treinamento():
-    # Pode opcionalmente receber dataset, mas por padrão usa exemplos salvos
     result = treinar_modelo()
     return jsonify(result)
+
+@app.route('/')
+def health():
+    return 'Labelling backend up!'
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
