@@ -1,0 +1,24 @@
+#rotulagem-panel {
+  position: fixed; z-index: 99999; left: 0; top: 0; width: 100vw; height: 100vh;
+}
+.rotulagem-modal-bg {
+  position: absolute; width: 100vw; height: 100vh; left: 0; top: 0; background: rgba(0,0,0,0.38);
+}
+.rotulagem-modal {
+  position: absolute; left: 50%; top: 48%; transform: translate(-50%, -50%);
+  background: #fff; padding: 28px 32px 24px 32px; border-radius: 13px; box-shadow: 0 8px 32px #0008;
+  min-width: 320px; max-width: 98vw; font-family: sans-serif;
+  border: 1.5px solid #1b2845;
+}
+#rotulagem-modal h3 { margin-top: 0; }
+#rotulagem-options label {
+  display: block; margin: 9px 0 0 0; font-size: 1.07em; cursor:pointer;
+}
+#rotulagem-outro { padding: 4px 8px; font-size: 1em; border-radius: 6px; border:1px solid #ccc;}
+#rotulagem-salvar, #rotulagem-fechar {
+  margin-top: 19px; padding: 7px 26px; border-radius: 8px; border: none;
+  font-size: 1.07em; cursor:pointer;
+}
+#rotulagem-salvar { background: #149C3B; color: #fff; }
+#rotulagem-fechar { background: #bbb; color: #fff; margin-left: 10px; }
+#rotulagem-status { min-height: 22px; }
