@@ -1,5 +1,4 @@
 (function(){
-  // Carrega HTML e CSS se não carregados ainda
   function loadLoginUI(callback) {
     if (document.getElementById('login-panel')) return callback();
     fetch('https://guirofeoli.github.io/labelling/login/login.html')
@@ -18,13 +17,11 @@
       });
   }
 
-  // Exibe painel de login e executa callback ao sucesso
   window.openLoginModal = function(onSuccess, USERS_URL) {
     loadLoginUI(function() {
       var panel = document.getElementById('login-panel');
       panel.style.display = '';
       document.getElementById('loginMsg').textContent = '';
-
       document.getElementById('cancelLoginBtn').onclick = function() {
         panel.style.display = 'none';
       };
@@ -34,12 +31,15 @@
         fetch(USERS_URL)
           .then(function(resp) { return resp.json(); })
           .then(function(users) {
+            // ADAPTADO: aceita chaves login/senha (compatível com seu JSON atual)
             var found = users.find(function(u) {
-              return u.user === login && u.pass === pass;
+              // Aceita tanto login/senha quanto user/pass para máxima compatibilidade
+              return (u.login === login && u.senha === pass) ||
+                     (u.user  === login && u.pass  === pass);
             });
             if (found) {
               panel.style.display = 'none';
-              if (typeof onSuccess === 'function') onSuccess(found.user);
+              if (typeof onSuccess === 'function') onSuccess(found.login || found.user);
             } else {
               document.getElementById('loginMsg').textContent = 'Usuário ou senha inválidos.';
             }
