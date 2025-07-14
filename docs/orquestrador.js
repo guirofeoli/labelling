@@ -69,11 +69,11 @@
     };
   }
 
-  function suggestManualLabel(data, options) {
+  function suggestManualLabel(data, options, msgExtra) {
     var suggest = document.createElement('div');
     suggest.style = 'background:#ffe9b5;padding:16px 18px;border:1px solid #e7ad00;position:fixed;top:12%;left:50%;transform:translateX(-50%);z-index:9999;border-radius:8px;min-width:330px;font-family:sans-serif;';
     suggest.innerHTML = `
-      <div><strong>Sessão não reconhecida com confiança suficiente.</strong></div>
+      <div><strong>${msgExtra ? msgExtra : 'Sessão não reconhecida com confiança suficiente.'}</strong></div>
       <div style="margin:10px 0 13px 0;">Se você for um usuário autorizado, clique abaixo para rotular manualmente.</div>
       <button id="manualLabelBtn" style="background:#149C3B;color:#fff;padding:6px 22px;border:none;border-radius:6px;">Rotular sessão</button>
       <button id="closeSuggestBtn" style="margin-left:10px;background:#aaa;color:#fff;padding:6px 18px;border:none;border-radius:6px;">Fechar</button>
@@ -130,6 +130,10 @@
         .then(function(resp) { return resp.json(); })
         .then(function(resp) {
           console.log('[Orquestrador] Resposta backend:', resp);
+          if (resp && resp.no_model) {
+            suggestManualLabel(data, [], "Ainda não há modelo treinado.<br>É necessário rotular exemplos antes de treinar.");
+            return;
+          }
           if (!resp || !resp.sessao || resp.confidence < 0.8) {
             suggestManualLabel(data, resp.options || []);
           } else {
