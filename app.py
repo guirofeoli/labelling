@@ -1,17 +1,15 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import os
 import json
-from models.predict import predict_session, MODEL_PATH, VECTORIZER_PATH
+from models.predict import predict_session
 from models.treinamento import treinar_modelo
 
 DATASET = os.path.join('data', 'exemplos.json')
+MODEL_FILE = os.path.join('data', 'modelo.pkl')
 
 app = Flask(__name__)
-
-@app.route('/api/model_status', methods=['GET'])
-def model_status():
-    has_model = os.path.exists(MODEL_PATH) and os.path.exists(VECTORIZER_PATH)
-    return jsonify({'model_trained': has_model})
+CORS(app, resources={r"/*": {"origins": "*"}})  # TROQUE '*' PELO DOMÍNIO PARA PRODUÇÃO!
 
 @app.route('/api/inteligencia', methods=['POST'])
 def inteligencia():
@@ -43,6 +41,11 @@ def rotulo():
 def treinamento():
     result = treinar_modelo()
     return jsonify(result)
+
+@app.route('/api/model_status')
+def model_status():
+    exists = os.path.exists(MODEL_FILE)
+    return jsonify({'model_trained': exists})
 
 @app.route('/')
 def health():

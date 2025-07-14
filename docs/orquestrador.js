@@ -9,7 +9,19 @@
   var isLoadingUtils = false;
   var modelReady = false;
 
-  console.log('[Orquestrador] Script carregado.');
+  function showModelMissingNotice() {
+    if (document.getElementById('taxo-model-missing')) return;
+    var div = document.createElement('div');
+    div.id = 'taxo-model-missing';
+    div.style = 'position:fixed;top:36%;left:50%;transform:translate(-50%, -50%);background:#fffbe6;border:2px solid #e7ad00;padding:32px 34px 26px 34px;font-size:1.22em;z-index:99999;border-radius:15px;min-width:350px;text-align:center;box-shadow:0 2px 22px #4442;font-family:sans-serif;';
+    div.innerHTML = "<b>⚠️ Ainda não há modelo treinado.</b><br><br>Rotule exemplos manualmente antes de treinar.<br><br><small>Clique desabilitado.</small>";
+    document.body.appendChild(div);
+  }
+
+  function hideModelMissingNotice() {
+    var div = document.getElementById('taxo-model-missing');
+    if (div) div.parentNode.removeChild(div);
+  }
 
   function loadScriptOnce(url, flag, callback) {
     if (window[flag]) return callback();
@@ -20,12 +32,10 @@
     script.onload = function() {
       window[flag] = true;
       if (flag === 'utilsLoaded') isLoadingUtils = false;
-      console.log('[Orquestrador] Script carregado:', url);
       callback();
     };
     script.onerror = function() {
       if (flag === 'utilsLoaded') isLoadingUtils = false;
-      console.error('[Orquestrador] Falha ao carregar script:', url);
       alert('Erro ao carregar script necessário: ' + url);
     };
     document.head.appendChild(script);
@@ -38,37 +48,28 @@
   }
 
   function openManualLabelling(data, options, msgExtra) {
-    // Sempre carrega rotulagem.js que carrega o HTML e CSS do painel
     loadScriptOnce(ROTULAGEM_URL, 'rotulagemLoaded', function() {
       window.openRotulagemModal(data, options || [], loggedUser, msgExtra);
     });
   }
 
-  function askForLogin(onSuccess) {
+  // Função global de login manual (console)
+  window.loginTaxonomista = function(cb) {
     loadScriptOnce(LOGIN_URL, 'loginLoaded', function() {
       window.openLoginModal(function(user){
         loggedUser = user;
-        if (typeof onSuccess === 'function') onSuccess();
+        if (typeof cb === 'function') cb(loggedUser);
       }, USERS_URL);
     });
-  }
+  };
 
   function suggestManualLabel(data, options, msgExtra) {
-    // Modal apenas pergunta login se não autenticado, depois rotulagem!
-    if (loggedUser) {
-      openManualLabelling(data, options, msgExtra);
-    } else {
-      askForLogin(function() {
-        openManualLabelling(data, options, msgExtra);
-      });
-    }
+    openManualLabelling(data, options, msgExtra);
   }
 
   function handleClick(e) {
-    if (isLoadingUtils) {
-      console.log('[Orquestrador] Ignorando clique: utils.js ainda carregando.');
-      return;
-    }
+    if (!modelReady) return; // Bloqueia tudo se não houver modelo treinado
+    if (isLoadingUtils) return;
     loadScriptOnce(UTILS_URL, 'utilsLoaded', function() {
       try {
         var el = e.target;
@@ -88,20 +89,6 @@
           text: el.innerText,
           html: el.outerHTML
         };
-        console.log('[Orquestrador] Dados coletados do clique:', data);
-
-        if (!modelReady) {
-          var options = getDefaultSessions();
-          if (data.contextHeadingsParagraphs && data.contextHeadingsParagraphs.length > 0) {
-            data.contextHeadingsParagraphs.forEach(function(ctx) {
-              options = options.concat((ctx.headings || []), (ctx.paragraphs || []));
-            });
-          }
-          options = Array.from(new Set(options.filter(Boolean)));
-          suggestManualLabel(data, options, "Ainda não há modelo treinado.<br>É necessário rotular exemplos antes de treinar.");
-          return;
-        }
-
         fetch(BACKEND_URL + '/api/inteligencia', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -109,10 +96,10 @@
         })
         .then(function(resp) { return resp.json(); })
         .then(function(resp) {
-          console.log('[Orquestrador] Resposta backend:', resp);
           if (!resp || !resp.sessao || resp.confidence < 0.8) {
             suggestManualLabel(data, resp.options || []);
           } else {
+            // Exibe no console apenas quando realmente tem modelo e predição válida
             console.log('[Taxonomia] Sessão detectada:', resp.sessao, 'Confiança:', resp.confidence);
           }
         })
@@ -128,7 +115,6 @@
   // Evita múltiplos listeners
   document.removeEventListener('click', window.__orquestrador_clickHandler, true);
   window.__orquestrador_clickHandler = function(e) {
-    // Não dispara rotulagem/login se clicou em painel/modal
     var modals = [
       document.getElementById('login-panel'),
       document.getElementById('rotulagem-panel')
@@ -147,14 +133,20 @@
     .then(function(status) {
       modelReady = !!status.model_trained;
       if (!modelReady) {
-        console.warn('[Orquestrador] Nenhum modelo treinado, fluxos automáticos desativados até treinamento!');
+        showModelMissingNotice();
+        document.removeEventListener('click', window.__orquestrador_clickHandler, true);
+      } else {
+        hideModelMissingNotice();
+        document.addEventListener('click', window.__orquestrador_clickHandler, true);
+        // Só agora pode dar o log!
+        console.log('[Orquestrador] Pronto para taxonomizar! Clique em qualquer elemento.');
       }
-      document.addEventListener('click', window.__orquestrador_clickHandler, true);
     })
     .catch(function() {
       modelReady = false;
-      document.addEventListener('click', window.__orquestrador_clickHandler, true);
+      showModelMissingNotice();
+      document.removeEventListener('click', window.__orquestrador_clickHandler, true);
     });
 
-  console.log('[Orquestrador] Pronto para taxonomizar! Clique em qualquer elemento.');
+  console.log('[Orquestrador] Script carregado.');
 })();
