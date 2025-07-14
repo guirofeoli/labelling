@@ -1,14 +1,10 @@
-import sys
-import os
-# Adiciona a raiz do projeto ao sys.path para importar 'models'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 from flask import Flask, request, jsonify
+import os
 import json
 from models.predict import predict_session
 from models.treinamento import treinar_modelo
 
-DATASET = os.path.join('..', 'data', 'exemplos.json')
+DATASET = os.path.join('data', 'exemplos.json')
 
 app = Flask(__name__)
 
@@ -21,7 +17,7 @@ def inteligencia():
 @app.route('/api/rotulo', methods=['POST'])
 def rotulo():
     exemplo = request.json
-    data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
+    data_dir = os.path.join('data')
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
     dataset_path = os.path.join(data_dir, 'exemplos.json')
