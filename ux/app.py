@@ -1,10 +1,14 @@
-from flask import Flask, request, jsonify
+import sys
 import os
+# Adiciona a raiz do projeto ao sys.path para importar 'models'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from flask import Flask, request, jsonify
 import json
 from models.predict import predict_session
 from models.treinamento import treinar_modelo
 
-DATASET = os.path.join('data', 'exemplos.json')
+DATASET = os.path.join('..', 'data', 'exemplos.json')
 
 app = Flask(__name__)
 
@@ -17,18 +21,20 @@ def inteligencia():
 @app.route('/api/rotulo', methods=['POST'])
 def rotulo():
     exemplo = request.json
-    if not os.path.exists('data'):
-        os.makedirs('data')
-    if not os.path.exists(DATASET):
+    data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+    dataset_path = os.path.join(data_dir, 'exemplos.json')
+    if not os.path.exists(dataset_path):
         exemplos = []
     else:
-        with open(DATASET, 'r', encoding='utf-8') as f:
+        with open(dataset_path, 'r', encoding='utf-8') as f:
             try:
                 exemplos = json.load(f)
             except Exception:
                 exemplos = []
     exemplos.append(exemplo)
-    with open(DATASET, 'w', encoding='utf-8') as f:
+    with open(dataset_path, 'w', encoding='utf-8') as f:
         json.dump(exemplos, f, ensure_ascii=False, indent=2)
     return jsonify({'ok': True, 'msg': 'Exemplo salvo para treino', 'total': len(exemplos)})
 
