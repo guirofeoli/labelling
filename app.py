@@ -1,12 +1,17 @@
 from flask import Flask, request, jsonify
 import os
 import json
-from models.predict import predict_session
+from models.predict import predict_session, MODEL_PATH, VECTORIZER_PATH
 from models.treinamento import treinar_modelo
 
 DATASET = os.path.join('data', 'exemplos.json')
 
 app = Flask(__name__)
+
+@app.route('/api/model_status', methods=['GET'])
+def model_status():
+    has_model = os.path.exists(MODEL_PATH) and os.path.exists(VECTORIZER_PATH)
+    return jsonify({'model_trained': has_model})
 
 @app.route('/api/inteligencia', methods=['POST'])
 def inteligencia():
