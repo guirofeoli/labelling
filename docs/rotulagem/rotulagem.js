@@ -37,22 +37,31 @@
   }
 
   // ----------- LOGIN -----------
-  window.loginTaxonomista = function(callbackAfterLogin) {
-    console.log('[DEBUG][loginTaxonomista] Chamado loginTaxonomista()');
-    loadScriptOnce(LOGIN_URL, 'loginLoaded', function() {
-      console.log('[DEBUG][loginTaxonomista] login.js carregado, chamando openLoginModal');
-      window.openLoginModal(function(user){
-        loggedUser = user;
-        console.log('[DEBUG][loginTaxonomista] Login realizado com usuário:', user);
-        window.hideModelMissingNotice && window.hideModelMissingNotice();
+window.loginTaxonomista = function(callbackAfterLogin) {
+  console.log('[DEBUG][loginTaxonomista] Chamado loginTaxonomista()');
+  loadScriptOnce(LOGIN_URL, 'loginLoaded', function() {
+    console.log('[DEBUG][loginTaxonomista] login.js carregado, chamando openLoginModal');
+    window.openLoginModal(function(user){
+      loggedUser = user;
+      console.log('[DEBUG][loginTaxonomista] Login realizado com usuário:', user);
+      window.hideModelMissingNotice && window.hideModelMissingNotice();
+      // GARANTA QUE O PAINEL FOI REMOVIDO
+      setTimeout(function() {
+        var panel = document.getElementById('taxo-model-missing');
+        if (panel) {
+          panel.parentNode.removeChild(panel);
+          console.log('[DEBUG][loginTaxonomista] Painel modelo ausente removido após login.');
+        }
+        // Inicia listeners de clique só agora!
         startRotulagemUX();
         if (typeof callbackAfterLogin === 'function') {
           console.log('[DEBUG][loginTaxonomista] Chamando callbackAfterLogin.');
           callbackAfterLogin(user);
         }
-      }, USERS_URL);
-    });
-  };
+      }, 120); // Pequeno delay para garantir DOM atualizado
+    }, USERS_URL);
+  });
+};
 
   // ----------- ROTULAGEM MANUAL / AUTOMÁTICA -----------
   function rotulagemManual(el, extraMsg) {
