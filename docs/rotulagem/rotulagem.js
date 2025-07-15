@@ -8,12 +8,12 @@
   var loggedUser = null;
   var modelReady = false;
 
-  // Modal modelo ausente
+  // Painel: modelo ausente
   window.showModelMissingNotice = function() {
     if (document.getElementById('taxo-model-missing')) return;
     var div = document.createElement('div');
     div.id = 'taxo-model-missing';
-    div.style = 'position:fixed;top:36%;left:50%;transform:translate(-50%, -50%);background:#fffbe6;border:2px solid #e7ad00;padding:32px 34px 26px 34px;font-size:1.22em;z-index:99999;border-radius:15px;min-width:350px;text-align:center;box-shadow:0 2px 22px #4442;font-family:sans-serif;';
+    div.style = 'position:fixed;top:36%;left:50%;transform:translate(-50%, -50%);background:#fffbe6;border:2px solid #e7ad00;padding:32px 34px 26px 34px;font-size:1.22em;z-index:99999;border-radius:15px;min-width:350px;text-align:center;box-shadow:0 2px 22px #4442;font-family:sans-serif;pointer-events:none;';
     div.innerHTML = "<b>⚠️ Ainda não há modelo treinado.</b><br><br>Rotule exemplos manualmente antes de treinar.<br><br><small>Clique desabilitado.</small>";
     document.body.appendChild(div);
   };
@@ -22,7 +22,6 @@
     if (div) div.parentNode.removeChild(div);
   };
 
-  // Loader de scripts
   function loadScriptOnce(url, flag, callback) {
     if (window[flag]) return callback && callback();
     var script = document.createElement('script');
@@ -37,20 +36,79 @@
     document.head.appendChild(script);
   }
 
-  // Login
+  // ----------- LOGIN -----------
   window.loginTaxonomista = function(callbackAfterLogin) {
     loadScriptOnce(LOGIN_URL, 'loginLoaded', function() {
       window.openLoginModal(function(user){
         loggedUser = user;
         window.hideModelMissingNotice && window.hideModelMissingNotice();
-        window.startRotulagemUX && window.startRotulagemUX();
+        startRotulagemUX();
         if (typeof callbackAfterLogin === 'function') callbackAfterLogin(user);
       }, USERS_URL);
     });
   };
 
-  // Rotulagem manual: libera painel no clique (após login)
-  window.startRotulagemUX = function() {
+  // ----------- ROTULAGEM MANUAL / AUTOMÁTICA -----------
+  function rotulagemManual(el, extraMsg) {
+    try {
+      var selectorTripa = getSelectorTripa(el);
+      var data = {
+        position: getElementRelativePosition(el),
+        selectorTripa: selectorTripa,
+        contextHeadingsParagraphs: getHeadingAndParagraphContext(selectorTripa),
+        fullSelector: getFullSelector(el),
+        text: el.innerText,
+        html: el.outerHTML
+      };
+      var options = ["header", "footer", "menu", "main", "hero", "conteúdo", "rodapé", "aside", "article", "banner"];
+      if (data.contextHeadingsParagraphs && data.contextHeadingsParagraphs.length > 0) {
+        data.contextHeadingsParagraphs.forEach(function(ctx) {
+          options = options.concat((ctx.headings || []), (ctx.paragraphs || []));
+        });
+      }
+      options = Array.from(new Set(options.filter(Boolean)));
+      window.openRotulagemModal(data, options, loggedUser, extraMsg || 'Rotule este exemplo e salve!');
+    } catch (err) {
+      console.error('Erro ao preparar dados para rotulagem:', err);
+    }
+  }
+
+  function rotulagemAutomatica(el) {
+    try {
+      var selectorTripa = getSelectorTripa(el);
+      var data = {
+        position: getElementRelativePosition(el),
+        selectorTripa: selectorTripa,
+        contextHeadingsParagraphs: getHeadingAndParagraphContext(selectorTripa),
+        fullSelector: getFullSelector(el),
+        text: el.innerText,
+        html: el.outerHTML
+      };
+      fetch(BACKEND_URL + '/api/inteligencia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      .then(function(resp) { return resp.json(); })
+      .then(function(resp) {
+        if (resp && resp.sessao && resp.confidence >= 0.8) {
+          // Sugerir sessão detectada (pode exibir mensagem, destacar na tela, etc)
+          alert('Sessão detectada: ' + resp.sessao + ' (confiança: ' + Math.round(resp.confidence*100) + '%)');
+        } else {
+          // Confiança baixa ou falha => painel de rotulagem manual
+          rotulagemManual(el, "Confiança baixa ou sessão não encontrada.<br>Rotule manualmente.");
+        }
+      })
+      .catch(function(err) {
+        rotulagemManual(el, "Erro ao consultar backend.<br>Rotule manualmente.");
+      });
+    } catch (err) {
+      rotulagemManual(el, "Falha inesperada.<br>Rotule manualmente.");
+    }
+  }
+
+  // Inicia listeners de clique conforme status do modelo
+  function startRotulagemUX() {
     window.hideModelMissingNotice && window.hideModelMissingNotice();
     loadScriptOnce(UTILS_URL, 'utilsLoaded', function() {
       loadScriptOnce(ROTULAGEM_URL, 'rotulagemLoaded', function() {
@@ -66,42 +124,27 @@
           ) {
             return;
           }
-          var el = e.target;
-          try {
-            var selectorTripa = getSelectorTripa(el);
-            var data = {
-              position: getElementRelativePosition(el),
-              selectorTripa: selectorTripa,
-              contextHeadingsParagraphs: getHeadingAndParagraphContext(selectorTripa),
-              fullSelector: getFullSelector(el),
-              text: el.innerText,
-              html: el.outerHTML
-            };
-            var options = ["header", "footer", "menu", "main", "hero", "conteúdo", "rodapé", "aside", "article", "banner"];
-            if (data.contextHeadingsParagraphs && data.contextHeadingsParagraphs.length > 0) {
-              data.contextHeadingsParagraphs.forEach(function(ctx) {
-                options = options.concat((ctx.headings || []), (ctx.paragraphs || []));
-              });
-            }
-            options = Array.from(new Set(options.filter(Boolean)));
-            window.openRotulagemModal(data, options, loggedUser, 'Rotule este exemplo e salve!');
-          } catch (err) {
-            console.error('Erro ao preparar dados para rotulagem:', err);
+          if (!modelReady) {
+            rotulagemManual(e.target);
+          } else {
+            rotulagemAutomatica(e.target);
           }
         };
         document.addEventListener('click', window.__rotulagem_taxonomia_click, true);
-        console.log('%c[Labelling] Pronto! Clique em qualquer elemento da página para iniciar a rotulagem UX.', 'color:#1b751b;font-weight:bold;');
+        console.log('%c[Labelling] Pronto! Clique em qualquer elemento da página para rotular ou taxonomizar UX.', 'color:#1b751b;font-weight:bold;');
       });
     });
-  };
+  }
+  window.startRotulagemUX = startRotulagemUX;
 
-  // Envio de exemplos para treinamento
+  // ----------- ENVIO DE TREINAMENTO -----------
   window.enviarRotulosParaTreinamento = function() {
     fetch(BACKEND_URL + '/api/treinamento', { method: 'POST' })
       .then(function(resp) { return resp.json(); })
       .then(function(ret) {
         if (ret.ok) {
           console.log('%c[TREINAMENTO] Modelo treinado com sucesso! Pronto para taxonomizar automaticamente.', 'color:#228c22;font-weight:bold;');
+          modelReady = true;
         } else {
           console.warn('[TREINAMENTO] Erro no treinamento:', ret);
         }
@@ -111,7 +154,7 @@
       });
   };
 
-  // Verifica modelo treinado ao carregar
+  // ----------- STATUS DO MODELO NO LOAD -----------
   fetch(BACKEND_URL + '/api/model_status')
     .then(function(resp) { return resp.json(); })
     .then(function(status) {
@@ -123,8 +166,9 @@
         console.log('[Labelling] Após o login, clique em qualquer elemento da página para rotular exemplos.');
         console.log('%c[Labelling] Quando terminar, envie os exemplos para treinamento com:\nwindow.enviarRotulosParaTreinamento()', 'color:#207cc7;font-weight:bold;');
       } else {
+        window.hideModelMissingNotice();
+        startRotulagemUX();
         console.log('%c[Orquestrador] Pronto para taxonomizar! Clique em qualquer elemento.', 'color:#1b751b;font-weight:bold;');
-        // (Opcional) Habilitar predição automática via backend...
       }
     })
     .catch(function() {
