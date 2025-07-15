@@ -31,11 +31,12 @@
     loadLoginPanel(function() {
       var panel = document.getElementById('login-panel');
       var backdrop = document.getElementById('login-backdrop');
-      panel.style.display = '';
-      backdrop.style.display = '';
+      panel.style.display = 'block';
+      backdrop.style.display = 'block';
       document.getElementById('login_input_user').value = '';
       document.getElementById('login_input_pass').value = '';
       document.getElementById('login_msg').textContent = '';
+
 
       // Bloqueia navegação enquanto aberto
       document.body.style.overflow = 'hidden';
@@ -45,15 +46,16 @@
         panel.style.display = 'none';
         backdrop.style.display = 'none';
         document.body.style.overflow = '';
+        document.onkeydown = null;
       }
       document.getElementById('login_cancelar').onclick = closeModal;
       backdrop.onclick = function() {}; // Não fecha ao clicar fora
       document.onkeydown = function(ev) {
         if (ev.key === "Escape") closeModal();
       };
-
       // Login
-      document.getElementById('login_entrar').onclick = function() {
+      document.getElementById('login_form').onsubmit = function(ev) {
+        ev.preventDefault();
         var login = document.getElementById('login_input_user').value.trim();
         var senha = document.getElementById('login_input_pass').value;
         if (!login || !senha) {
@@ -86,5 +88,6 @@
       };
     });
   };
+
 
 })();

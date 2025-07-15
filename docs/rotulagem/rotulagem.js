@@ -12,6 +12,8 @@
 
   // Painel: apenas console quando modelo ausente
   window.showModelMissingNotice = function() {
+    console.log('[Labelling] Ainda não há modelo treinado.');
+
   };
   // Mantida para compatibilidade com versões antigas
   window.hideModelMissingNotice = function() {
@@ -85,6 +87,56 @@
         }
 
         document.getElementById('rotulagem_cancelar').onclick = function() {
+          panel.parentNode.removeChild(panel);
+          backdrop.parentNode.removeChild(backdrop);
+        };
+
+        document.getElementById('rotulagem_salvar').onclick = function() {
+          var sessao = input.value.trim();
+          if (!sessao) {
+            msg.textContent = 'Informe a sessão.';
+            return;
+          }
+          msg.textContent = '';
+          var payload = Object.assign({}, data, {
+            sessao: sessao,
+            user: user
+          });
+          fetch(BACKEND_URL + '/api/rotulo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+          .then(function(resp) { return resp.json(); })
+          .then(function(resp) {
+            console.log('[ROTULAGEM] Salvo:', resp);
+            panel.parentNode.removeChild(panel);
+            backdrop.parentNode.removeChild(backdrop);
+          })
+          .catch(function() {
+            msg.textContent = 'Falha ao salvar rótulo.';
+          });
+        };
+
+        backdrop.style.display = 'block';
+        panel.style.display = 'block';
+        input.focus();
+      });
+  };
+
+  // ----------- LOGIN -----------
+window.loginTaxonomista = function(callbackAfterLogin) {
+  console.log('[DEBUG][loginTaxonomista] Chamado loginTaxonomista()');
+  loadScriptOnce(LOGIN_URL, 'loginLoaded', function() {
+    console.log('[DEBUG][loginTaxonomista] login.js carregado, chamando openLoginModal');
+    window.openLoginModal(function(user){
+      loggedUser = user;
+      console.log('[DEBUG][loginTaxonomista] Login realizado com usuário:', user);
+      window.hideModelMissingNotice && window.hideModelMissingNotice();
+      // GARANTA QUE O PAINEL FOI REMOVIDO
+      setTimeout(function() {
+        var panel = document.getElementById('taxo-model-missing');
+        if (panel) {
 
           panel.parentNode.removeChild(panel);
           backdrop.parentNode.removeChild(backdrop);
@@ -356,28 +408,11 @@
       });
   };
 
-  // ----------- STATUS DO MODELO NO LOAD -----------
-  fetch(BACKEND_URL + '/api/model_status')
-    .then(function(resp) { return resp.json(); })
-    .then(function(status) {
-      modelReady = !!status.model_trained;
-      if (!modelReady) {
-        window.showModelMissingNotice();
-        console.log('%c[Labelling] Ainda não há modelo treinado.', 'color:#b37b00;font-weight:bold;');
-        console.log('%c[Labelling] Para começar, faça login com: window.loginTaxonomista()', 'color:#1a2e6b;');
-        console.log('[Labelling] Após o login, clique em qualquer elemento da página para rotular exemplos.');
-        console.log('%c[Labelling] Quando terminar, envie os exemplos para treinamento com:\nwindow.enviarRotulosParaTreinamento()', 'color:#207cc7;font-weight:bold;');
-      } else {
-        window.hideModelMissingNotice();
-        ativarRotulagemUX();
-        console.log('%c[Orquestrador] Pronto para taxonomizar! Clique em qualquer elemento.', 'color:#1b751b;font-weight:bold;');
-      }
-    })
-    .catch(function() {
-      modelReady = false;
-      window.showModelMissingNotice();
-      console.log('%c[Labelling] Falha ao consultar status do modelo. Tente novamente mais tarde.', 'color:#d42a2a;font-weight:bold;');
-    });
+  // ----------- EXPORTS -----------
+  window.rotulagemInternals = {
+    startRotulagemUX: startRotulagemUX,
+    enviarRotulosParaTreinamento: window.enviarRotulosParaTreinamento
+  };
+  console.log('[Rotulagem] Script carregado.');
 
-  console.log('[Orquestrador] Script carregado.');
 })();
