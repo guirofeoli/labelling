@@ -1,7 +1,7 @@
 (function() {
-  var UTILS_URL      = 'https://guirofeoli.github.io/labelling/docs/utils.js';
-  var ROTULAGEM_URL  = 'https://guirofeoli.github.io/labelling/docs/rotulagem/rotulagem.js';
-  var LOGIN_URL      = 'https://guirofeoli.github.io/labelling/docs/login/login.js';
+  var UTILS_URL      = 'https://guirofeoli.github.io/labelling/utils.js';
+  var ROTULAGEM_URL  = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.js';
+  var LOGIN_URL      = 'https://guirofeoli.github.io/labelling/login/login.js';
   var USERS_URL      = 'https://raw.githubusercontent.com/guirofeoli/labelling/refs/heads/main/docs/users.json';
   var BACKEND_URL    = 'https://labelling-production.up.railway.app';
 

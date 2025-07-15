@@ -1,24 +1,23 @@
 (function() {
-  function removeOldLoginPanel() {
-    var p = document.getElementById('login-panel');
-    if (p && p.parentNode) p.parentNode.removeChild(p);
-    var b = document.getElementById('login-backdrop');
-    if (b && b.parentNode) b.parentNode.removeChild(b);
-    document.onkeydown = null;
-  }
+  // Caminhos corretos SEM /docs
+  var LOGIN_HTML_URL = 'https://guirofeoli.github.io/labelling/login/login.html';
+  var LOGIN_CSS_URL  = 'https://guirofeoli.github.io/labelling/login/login.css';
+
   function loadLoginPanel(callback) {
-    removeOldLoginPanel();
+    if (document.getElementById('login-panel')) return callback && callback();
+    // CSS
     var cssId = 'login-css';
     if (!document.getElementById(cssId)) {
       var link = document.createElement('link');
       link.id = cssId;
       link.rel = 'stylesheet';
-      link.href = 'https://guirofeoli.github.io/labelling/docs/login/login.css';
+      link.href = LOGIN_CSS_URL;
       document.head.appendChild(link);
     }
-    fetch('https://guirofeoli.github.io/labelling/docs/login/login.html')
-      .then(r => r.text())
-      .then(html => {
+    // HTML
+    fetch(LOGIN_HTML_URL)
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
         var wrapper = document.createElement('div');
         wrapper.innerHTML = html;
         document.body.appendChild(wrapper.firstElementChild); // backdrop
@@ -26,53 +25,54 @@
         callback && callback();
       });
   }
-  window.openLoginModal = function(onSuccess, usersUrl) {
-    usersUrl = usersUrl || 'https://raw.githubusercontent.com/guirofeoli/labelling/refs/heads/main/docs/users.json';
+
+  // Expor função global para abrir o modal
+  window.openLoginModal = function(callback, usersUrl) {
     loadLoginPanel(function() {
       var panel = document.getElementById('login-panel');
       var backdrop = document.getElementById('login-backdrop');
       panel.style.display = '';
       backdrop.style.display = '';
-      var inpUser = document.getElementById('login_input_user');
-      var inpPass = document.getElementById('login_input_pass');
+
       var msg = document.getElementById('login_msg');
-      inpUser.value = '';
-      inpPass.value = '';
-      inpUser.focus();
       msg.textContent = '';
-      function closeModal() {
-        removeOldLoginPanel();
+
+      function closeLogin() {
+        panel.style.display = 'none';
+        backdrop.style.display = 'none';
       }
-      document.getElementById('login_cancelar').onclick = closeModal;
+      document.getElementById('login_cancelar').onclick = closeLogin;
+
+      // Fechar com ESC
       document.onkeydown = function(ev) {
-        if (ev.key === "Escape") closeModal();
+        if (ev.key === "Escape") closeLogin();
       };
-      backdrop.onclick = function(e) {};
+      backdrop.onclick = function(e) {
+        // não fecha ao clicar fora
+      };
+
       document.getElementById('login_entrar').onclick = function() {
-        var login = inpUser.value.trim();
-        var senha = inpPass.value;
+        var login = document.getElementById('login_input').value.trim();
+        var senha = document.getElementById('login_senha').value.trim();
         if (!login || !senha) {
-          msg.textContent = "Preencha login e senha.";
+          msg.textContent = "Digite usuário e senha.";
           return;
         }
         fetch(usersUrl)
-          .then(r => r.json())
-          .then(users => {
+          .then(function(r) { return r.json(); })
+          .then(function(users) {
             var found = users.find(function(u) {
-              return (
-                (u.login === login && u.senha === senha) ||
-                (u.user === login && u.pass === senha)
-              );
+              return (u.login === login && u.senha === senha);
             });
             if (found) {
-              closeModal();
-              if (typeof onSuccess === 'function') onSuccess(login);
+              closeLogin();
+              if (typeof callback === 'function') callback(found.login);
             } else {
-              msg.textContent = 'Usuário ou senha inválidos.';
+              msg.textContent = "Usuário ou senha inválidos.";
             }
           })
-          .catch(function(e){
-            msg.textContent = 'Erro ao validar usuário: ' + e;
+          .catch(function() {
+            msg.textContent = "Erro ao buscar usuários.";
           });
       };
     });
