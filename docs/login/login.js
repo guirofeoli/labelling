@@ -37,6 +37,7 @@
       document.getElementById('login_input_pass').value = '';
       document.getElementById('login_msg').textContent = '';
 
+
       // Bloqueia navegação enquanto aberto
       document.body.style.overflow = 'hidden';
 
@@ -87,5 +88,6 @@
       };
     });
   };
+
 
 })();

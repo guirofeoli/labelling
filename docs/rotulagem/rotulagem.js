@@ -1,21 +1,27 @@
 (function() {
   var UTILS_URL      = 'https://guirofeoli.github.io/labelling/utils.js';
-  var ROTULAGEM_URL  = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.js';
+  var ROTULAGEM_HTML = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.html';
+  var ROTULAGEM_CSS  = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.css';
   var LOGIN_URL      = 'https://guirofeoli.github.io/labelling/login/login.js';
   var USERS_URL      = 'https://raw.githubusercontent.com/guirofeoli/labelling/refs/heads/main/docs/users.json';
   var BACKEND_URL    = 'https://labelling-production.up.railway.app';
 
   var loggedUser = null;
   var modelReady = false;
+  var rotulagemAtiva = false;
 
   // Painel: apenas console quando modelo ausente
   window.showModelMissingNotice = function() {
     console.log('[Labelling] Ainda não há modelo treinado.');
+
   };
   // Mantida para compatibilidade com versões antigas
   window.hideModelMissingNotice = function() {
     var div = document.getElementById('taxo-model-missing');
-    if (div) div.parentNode.removeChild(div);
+    if (div) {
+      div.parentNode.removeChild(div);
+      console.log('[DEBUG][hideModelMissingNotice] Painel modelo ausente removido.');
+    }
   };
 
   function loadScriptOnce(url, flag, callback) {
@@ -131,19 +137,167 @@ window.loginTaxonomista = function(callbackAfterLogin) {
       setTimeout(function() {
         var panel = document.getElementById('taxo-model-missing');
         if (panel) {
+
           panel.parentNode.removeChild(panel);
-          console.log('[DEBUG][loginTaxonomista] Painel modelo ausente removido após login.');
+          backdrop.parentNode.removeChild(backdrop);
+        };
+
+        document.getElementById('rotulagem_salvar').onclick = function() {
+          var sessao = input.value.trim();
+          if (!sessao) {
+            msg.textContent = 'Informe a sessão.';
+            return;
+          }
+          msg.textContent = '';
+          var payload = Object.assign({}, data, {
+            sessao: sessao,
+            user: user
+          });
+          fetch(BACKEND_URL + '/api/rotulo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+          .then(function(resp) { return resp.json(); })
+          .then(function(resp) {
+            console.log('[ROTULAGEM] Salvo:', resp);
+            panel.parentNode.removeChild(panel);
+            backdrop.parentNode.removeChild(backdrop);
+          })
+          .catch(function() {
+            msg.textContent = 'Falha ao salvar rótulo.';
+          });
+        };
+
+        backdrop.style.display = 'block';
+        panel.style.display = 'block';
+        input.focus();
+      });
+  };
+
+  // ----------- LOGIN -----------
+  window.loginTaxonomista = function(callbackAfterLogin) {
+    console.log('[DEBUG][loginTaxonomista] Chamado loginTaxonomista()');
+    loadScriptOnce(LOGIN_URL, 'loginLoaded', function() {
+      console.log('[DEBUG][loginTaxonomista] login.js carregado, chamando openLoginModal');
+      window.openLoginModal(function(user){
+        loggedUser = user;
+        console.log('[DEBUG][loginTaxonomista] Login realizado com usuário:', user);
+        window.hideModelMissingNotice && window.hideModelMissingNotice();
+        setTimeout(function() {
+          var panel = document.getElementById('taxo-model-missing');
+          if (panel) {
+            panel.parentNode.removeChild(panel);
+            console.log('[DEBUG][loginTaxonomista] Painel modelo ausente removido após login.');
+          }
+          ativarRotulagemUX();
+          if (typeof callbackAfterLogin === 'function') {
+            console.log('[DEBUG][loginTaxonomista] Chamando callbackAfterLogin.');
+            callbackAfterLogin(user);
+          }
+        }, 100);
+      }, USERS_URL);
+    });
+  };
+
+  // ----------- ROTULAGEM MODAL (ESSA FUNÇÃO!) -----------
+  // Carrega HTML/CSS do modal de rotulagem, só 1 vez
+  function loadRotulagemPanel(callback) {
+    if (document.getElementById('rotulagem-panel')) return callback();
+    // CSS
+    var cssId = 'rotulagem-css';
+    if (!document.getElementById(cssId)) {
+      var link = document.createElement('link');
+      link.id = cssId;
+      link.rel = 'stylesheet';
+      link.href = ROTULAGEM_CSS;
+      document.head.appendChild(link);
+    }
+    // HTML
+    fetch(ROTULAGEM_HTML)
+      .then(r => r.text())
+      .then(html => {
+        var wrapper = document.createElement('div');
+        wrapper.innerHTML = html;
+        document.body.appendChild(wrapper.firstElementChild); // backdrop
+        document.body.appendChild(wrapper.lastElementChild);  // painel
+        callback();
+      });
+  }
+
+  window.openRotulagemModal = function(data, options, loggedUser, msgExtra) {
+    loadRotulagemPanel(function() {
+      var panel = document.getElementById('rotulagem-panel');
+      var backdrop = document.getElementById('rotulagem-backdrop');
+      panel.style.display = '';
+      backdrop.style.display = '';
+
+      document.getElementById('rotulagem-msg-extra').innerHTML = msgExtra || "Selecione ou digite o nome da sessão desse elemento.";
+      document.getElementById('rotulagem_msg').textContent = '';
+      // Popular datalist
+      var dl = document.getElementById('rotulagem_options');
+      dl.innerHTML = '';
+      (options || []).forEach(function(opt) {
+        if (opt) {
+          var op = document.createElement('option');
+          op.value = opt;
+          dl.appendChild(op);
         }
-        // Inicia listeners de clique só agora!
-        startRotulagemUX();
-        if (typeof callbackAfterLogin === 'function') {
-          console.log('[DEBUG][loginTaxonomista] Chamando callbackAfterLogin.');
-          callbackAfterLogin(user);
+      });
+      // Limpa input e foca
+      var inp = document.getElementById('rotulagem_input');
+      inp.value = '';
+      inp.focus();
+
+      // Cancela
+      function closeModal() {
+        panel.style.display = 'none';
+        backdrop.style.display = 'none';
+      }
+      document.getElementById('rotulagem_cancelar').onclick = closeModal;
+      // Fechar com ESC
+      document.onkeydown = function(ev) {
+        if (ev.key === "Escape") closeModal();
+      };
+      // Bloqueia clique no backdrop (não fecha ao clicar fora)
+      backdrop.onclick = function(e) {};
+
+      document.getElementById('rotulagem_salvar').onclick = function() {
+        var sessao = inp.value.trim();
+        if (!sessao) {
+          document.getElementById('rotulagem_msg').textContent = 'Digite a sessão.';
+          return;
         }
-      }, 120); // Pequeno delay para garantir DOM atualizado
-    }, USERS_URL);
-  });
-};
+        var exemplo = Object.assign({}, data, {
+          sessao: sessao,
+          usuario: loggedUser || null,
+          timestamp: new Date().toISOString()
+        });
+        fetch(BACKEND_URL + '/api/rotulo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(exemplo)
+        })
+        .then(resp => resp.json())
+        .then(resp => {
+          if (resp.ok) {
+            closeModal();
+            // Feedback
+            var okmsg = document.createElement('div');
+            okmsg.style = 'position:fixed;top:20%;left:50%;transform:translate(-50%,0);background:#149C3B;color:#fff;padding:13px 23px;border-radius:9px;font-size:1.08em;z-index:100000;';
+            okmsg.textContent = "Exemplo salvo! Total rotulados: " + (resp.total || '');
+            document.body.appendChild(okmsg);
+            setTimeout(function(){ okmsg.parentNode && okmsg.parentNode.removeChild(okmsg); }, 1400);
+          } else {
+            document.getElementById('rotulagem_msg').textContent = resp.msg || 'Erro ao salvar.';
+          }
+        })
+        .catch(function(e){
+          document.getElementById('rotulagem_msg').textContent = 'Falha ao salvar: ' + e;
+        });
+      };
+    });
+  };
 
   // ----------- ROTULAGEM MANUAL / AUTOMÁTICA -----------
   function rotulagemManual(el, extraMsg) {
@@ -204,34 +358,38 @@ window.loginTaxonomista = function(callbackAfterLogin) {
   }
 
   // Inicia listeners de clique conforme status do modelo
-  function startRotulagemUX() {
+  function ativarRotulagemUX() {
+    if (rotulagemAtiva) {
+      console.log('[DEBUG][ativarRotulagemUX] Rotulagem já ativa, ignorando.');
+      return;
+    }
+    rotulagemAtiva = true;
     window.hideModelMissingNotice && window.hideModelMissingNotice();
     loadScriptOnce(UTILS_URL, 'utilsLoaded', function() {
-      loadScriptOnce(ROTULAGEM_URL, 'rotulagemLoaded', function() {
-        if (window.__rotulagem_taxonomia_click) {
-          document.removeEventListener('click', window.__rotulagem_taxonomia_click, true);
+      // ROTULAGEM_URL não é mais utilizado (a função openRotulagemModal já está neste arquivo)
+      if (window.__rotulagem_taxonomia_click) {
+        document.removeEventListener('click', window.__rotulagem_taxonomia_click, true);
+      }
+      window.__rotulagem_taxonomia_click = function(e) {
+        // NÃO abrir se painel/modal já está aberto
+        if (
+          document.getElementById('taxo-model-missing') ||
+          document.getElementById('rotulagem-panel') ||
+          document.getElementById('login-panel')
+        ) {
+          return;
         }
-        window.__rotulagem_taxonomia_click = function(e) {
-          // NÃO abrir se painel/modal já está aberto
-          if (
-            document.getElementById('taxo-model-missing') ||
-            document.getElementById('rotulagem-panel') ||
-            document.getElementById('login-panel')
-          ) {
-            return;
-          }
-          if (!modelReady) {
-            rotulagemManual(e.target);
-          } else {
-            rotulagemAutomatica(e.target);
-          }
-        };
-        document.addEventListener('click', window.__rotulagem_taxonomia_click, true);
-        console.log('%c[Labelling] Pronto! Clique em qualquer elemento da página para rotular ou taxonomizar UX.', 'color:#1b751b;font-weight:bold;');
-      });
+        if (!modelReady) {
+          rotulagemManual(e.target);
+        } else {
+          rotulagemAutomatica(e.target);
+        }
+      };
+      document.addEventListener('click', window.__rotulagem_taxonomia_click, true);
+      console.log('%c[Labelling] Pronto! Clique em qualquer elemento da página para rotular ou taxonomizar UX.', 'color:#1b751b;font-weight:bold;');
     });
   }
-  window.startRotulagemUX = startRotulagemUX;
+  window.startRotulagemUX = ativarRotulagemUX;
 
   // ----------- ENVIO DE TREINAMENTO -----------
   window.enviarRotulosParaTreinamento = function() {
@@ -256,4 +414,5 @@ window.loginTaxonomista = function(callbackAfterLogin) {
     enviarRotulosParaTreinamento: window.enviarRotulosParaTreinamento
   };
   console.log('[Rotulagem] Script carregado.');
+
 })();
