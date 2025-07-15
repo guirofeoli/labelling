@@ -8,15 +8,11 @@
   var loggedUser = null;
   var modelReady = false;
 
-  // Painel: modelo ausente
+  // Painel: apenas console quando modelo ausente
   window.showModelMissingNotice = function() {
-    if (document.getElementById('taxo-model-missing')) return;
-    var div = document.createElement('div');
-    div.id = 'taxo-model-missing';
-    div.style = 'position:fixed;top:36%;left:50%;transform:translate(-50%, -50%);background:#fffbe6;border:2px solid #e7ad00;padding:32px 34px 26px 34px;font-size:1.22em;z-index:99999;border-radius:15px;min-width:350px;text-align:center;box-shadow:0 2px 22px #4442;font-family:sans-serif;pointer-events:none;';
-    div.innerHTML = "<b>⚠️ Ainda não há modelo treinado.</b><br><br>Rotule exemplos manualmente antes de treinar.<br><br><small>Clique desabilitado.</small>";
-    document.body.appendChild(div);
+    console.log('[Labelling] Ainda não há modelo treinado.');
   };
+  // Mantida para compatibilidade com versões antigas
   window.hideModelMissingNotice = function() {
     var div = document.getElementById('taxo-model-missing');
     if (div) div.parentNode.removeChild(div);
@@ -35,6 +31,92 @@
     };
     document.head.appendChild(script);
   }
+
+  // ----------- MODAL DE ROTULAGEM -----------
+  var ROTULAGEM_HTML_URL = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.html';
+  var ROTULAGEM_CSS_URL  = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.css';
+
+  window.openRotulagemModal = function(data, options, user, extraMsg) {
+    // Remove instâncias anteriores
+    var old = document.getElementById('rotulagem-panel');
+    if (old) old.parentNode.removeChild(old);
+    var oldBack = document.getElementById('rotulagem-backdrop');
+    if (oldBack) oldBack.parentNode.removeChild(oldBack);
+
+    // Carrega CSS se necessário
+    if (!document.getElementById('rotulagem-css')) {
+      var link = document.createElement('link');
+      link.id = 'rotulagem-css';
+      link.rel = 'stylesheet';
+      link.href = ROTULAGEM_CSS_URL;
+      document.head.appendChild(link);
+    }
+
+    // Carrega HTML do modal
+    fetch(ROTULAGEM_HTML_URL)
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var wrapper = document.createElement('div');
+        wrapper.innerHTML = html;
+        var backdrop = wrapper.firstElementChild;
+        var panel = wrapper.lastElementChild;
+        document.body.appendChild(backdrop);
+        document.body.appendChild(panel);
+
+        var input = document.getElementById('rotulagem_input');
+        var datalist = document.getElementById('rotulagem_options');
+        var msg = document.getElementById('rotulagem_msg');
+        var extra = document.getElementById('rotulagem-msg-extra');
+
+        extra.innerHTML = extraMsg || '';
+        input.value = '';
+        datalist.innerHTML = '';
+
+        if (Array.isArray(options)) {
+          options.forEach(function(opt) {
+            var optEl = document.createElement('option');
+            optEl.value = opt;
+            datalist.appendChild(optEl);
+          });
+        }
+
+        document.getElementById('rotulagem_cancelar').onclick = function() {
+          panel.parentNode.removeChild(panel);
+          backdrop.parentNode.removeChild(backdrop);
+        };
+
+        document.getElementById('rotulagem_salvar').onclick = function() {
+          var sessao = input.value.trim();
+          if (!sessao) {
+            msg.textContent = 'Informe a sessão.';
+            return;
+          }
+          msg.textContent = '';
+          var payload = Object.assign({}, data, {
+            sessao: sessao,
+            user: user
+          });
+          fetch(BACKEND_URL + '/api/rotulo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+          .then(function(resp) { return resp.json(); })
+          .then(function(resp) {
+            console.log('[ROTULAGEM] Salvo:', resp);
+            panel.parentNode.removeChild(panel);
+            backdrop.parentNode.removeChild(backdrop);
+          })
+          .catch(function() {
+            msg.textContent = 'Falha ao salvar rótulo.';
+          });
+        };
+
+        backdrop.style.display = 'block';
+        panel.style.display = 'block';
+        input.focus();
+      });
+  };
 
   // ----------- LOGIN -----------
 window.loginTaxonomista = function(callbackAfterLogin) {
