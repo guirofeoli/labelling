@@ -9,15 +9,11 @@
   var loggedUser = null;
   var modelReady = false;
 
-  // Exibe aviso modal se não houver modelo treinado
+  // Avisa apenas via console quando o modelo ainda não foi treinado
   window.showModelMissingNotice = function() {
-    if (document.getElementById('taxo-model-missing')) return;
-    var div = document.createElement('div');
-    div.id = 'taxo-model-missing';
-    div.style = 'position:fixed;top:36%;left:50%;transform:translate(-50%, -50%);background:#fffbe6;border:2px solid #e7ad00;padding:32px 34px 26px 34px;font-size:1.22em;z-index:99999;border-radius:15px;min-width:350px;text-align:center;box-shadow:0 2px 22px #4442;font-family:sans-serif;';
-    div.innerHTML = "<b>⚠️ Ainda não há modelo treinado.</b><br><br>Rotule exemplos manualmente antes de treinar.<br><br><small>Clique desabilitado.</small>";
-    document.body.appendChild(div);
+    console.log('[Labelling] Ainda não há modelo treinado.');
   };
+  // Mantida para compatibilidade - remove painel caso alguma versão antiga tenha criado
   window.hideModelMissingNotice = function() {
     var div = document.getElementById('taxo-model-missing');
     if (div) div.parentNode.removeChild(div);
