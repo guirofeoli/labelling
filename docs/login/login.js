@@ -1,76 +1,90 @@
-(function(){
-  var LOGIN_HTML_URL = 'https://guirofeoli.github.io/labelling/login/login.html';
-  var LOGIN_CSS_URL  = 'https://guirofeoli.github.io/labelling/login/login.css';
+(function() {
+  var LOGIN_HTML = 'https://guirofeoli.github.io/labelling/login/login.html';
+  var LOGIN_CSS  = 'https://guirofeoli.github.io/labelling/login/login.css';
 
-  window.openLoginModal = function(callback, usersUrl) {
-    // Remove modais antigos, se existirem
-    var old = document.getElementById('login-panel');
-    if (old) old.parentNode.removeChild(old);
-    var oldBack = document.getElementById('login-backdrop');
-    if (oldBack) oldBack.parentNode.removeChild(oldBack);
-
-    // Carrega CSS
-    if (!document.getElementById('login-css')) {
+  // Carrega HTML/CSS do painel de login só uma vez
+  function loadLoginPanel(callback) {
+    if (document.getElementById('login-panel')) return callback();
+    // CSS
+    var cssId = 'login-css';
+    if (!document.getElementById(cssId)) {
       var link = document.createElement('link');
-      link.id = 'login-css';
+      link.id = cssId;
       link.rel = 'stylesheet';
-      link.href = LOGIN_CSS_URL;
+      link.href = LOGIN_CSS;
       document.head.appendChild(link);
     }
-
-    // Carrega HTML
-    fetch(LOGIN_HTML_URL)
-      .then(function(r) { return r.text(); })
-      .then(function(html) {
-        // Cria wrapper para parsear o HTML
+    // HTML
+    fetch(LOGIN_HTML)
+      .then(r => r.text())
+      .then(html => {
         var wrapper = document.createElement('div');
         wrapper.innerHTML = html;
         document.body.appendChild(wrapper.firstElementChild); // backdrop
         document.body.appendChild(wrapper.lastElementChild);  // painel
-
-        // Referências dos elementos
-        var userInp = document.getElementById('login_input_user');
-        var passInp = document.getElementById('login_input_pass');
-        var btnEntrar = document.getElementById('login_btn_entrar');
-        var btnCancelar = document.getElementById('login_btn_cancelar');
-        var msg = document.getElementById('login_msg');
-
-        // Foco inicial
-        userInp.focus();
-
-        btnCancelar.onclick = function(){
-          var panel = document.getElementById('login-panel');
-          var backdrop = document.getElementById('login-backdrop');
-          if (panel) panel.parentNode.removeChild(panel);
-          if (backdrop) backdrop.parentNode.removeChild(backdrop);
-        };
-
-        btnEntrar.onclick = function(){
-          var login = userInp.value.trim();
-          var senha = passInp.value.trim();
-          msg.textContent = '';
-          fetch(usersUrl)
-            .then(function(r) { return r.json(); })
-            .then(function(users) {
-              // Garante compatibilidade com user/senha OU login/senha
-              var found = users.find(function(u) {
-                return (u.user || u.login) === login && u.senha === senha;
-              });
-              if (found) {
-                // Remove modal
-                var panel = document.getElementById('login-panel');
-                var backdrop = document.getElementById('login-backdrop');
-                if (panel) panel.parentNode.removeChild(panel);
-                if (backdrop) backdrop.parentNode.removeChild(backdrop);
-                if (typeof callback === 'function') callback(login);
-              } else {
-                msg.textContent = 'Usuário ou senha inválidos.';
-              }
-            })
-            .catch(function(e) {
-              msg.textContent = 'Falha ao validar usuário.';
-            });
-        };
+        callback();
       });
+  }
+
+  // Exibe o modal de login
+  window.openLoginModal = function(onLogin, usersUrl) {
+    loadLoginPanel(function() {
+      var panel = document.getElementById('login-panel');
+      var backdrop = document.getElementById('login-backdrop');
+      panel.style.display = '';
+      backdrop.style.display = '';
+      document.getElementById('login_input_user').value = '';
+      document.getElementById('login_input_pass').value = '';
+      document.getElementById('login_msg').textContent = '';
+
+      // Bloqueia navegação enquanto aberto
+      document.body.style.overflow = 'hidden';
+
+      // Fechar
+      function closeModal() {
+        panel.style.display = 'none';
+        backdrop.style.display = 'none';
+        document.body.style.overflow = '';
+      }
+      document.getElementById('login_cancelar').onclick = closeModal;
+      backdrop.onclick = function() {}; // Não fecha ao clicar fora
+      document.onkeydown = function(ev) {
+        if (ev.key === "Escape") closeModal();
+      };
+
+      // Login
+      document.getElementById('login_entrar').onclick = function() {
+        var login = document.getElementById('login_input_user').value.trim();
+        var senha = document.getElementById('login_input_pass').value;
+        if (!login || !senha) {
+          document.getElementById('login_msg').textContent = 'Preencha usuário e senha.';
+          return;
+        }
+        fetch(usersUrl)
+          .then(r => r.json())
+          .then(function(users) {
+            // Novo padrão: [{ "login": "...", "senha": "..." }]
+            var found = users.find(function(u) {
+              return (
+                (u.login && u.login === login) &&
+                (u.senha && u.senha === senha)
+              );
+            });
+            if (found) {
+              closeModal();
+              if (typeof onLogin === 'function') onLogin(found.login);
+              console.log('[Login] Login realizado com sucesso:', found.login);
+            } else {
+              document.getElementById('login_msg').textContent = 'Usuário ou senha inválidos.';
+              console.log('[Login] Falha no login - usuário/senha incorretos.');
+            }
+          })
+          .catch(function(err) {
+            document.getElementById('login_msg').textContent = 'Erro ao buscar usuários: ' + err;
+            console.error('[Login] Erro ao buscar users.json:', err);
+          });
+      };
+    });
   };
+
 })();
