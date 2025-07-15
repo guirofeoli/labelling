@@ -1,74 +1,76 @@
-(function() {
+(function(){
   var LOGIN_HTML_URL = 'https://guirofeoli.github.io/labelling/login/login.html';
   var LOGIN_CSS_URL  = 'https://guirofeoli.github.io/labelling/login/login.css';
 
-  function loadLoginPanel(callback) {
-    if (document.getElementById('login-panel')) return callback && callback();
-    var cssId = 'login-css';
-    if (!document.getElementById(cssId)) {
+  window.openLoginModal = function(callback, usersUrl) {
+    // Remove modais antigos, se existirem
+    var old = document.getElementById('login-panel');
+    if (old) old.parentNode.removeChild(old);
+    var oldBack = document.getElementById('login-backdrop');
+    if (oldBack) oldBack.parentNode.removeChild(oldBack);
+
+    // Carrega CSS
+    if (!document.getElementById('login-css')) {
       var link = document.createElement('link');
-      link.id = cssId;
+      link.id = 'login-css';
       link.rel = 'stylesheet';
       link.href = LOGIN_CSS_URL;
       document.head.appendChild(link);
     }
+
+    // Carrega HTML
     fetch(LOGIN_HTML_URL)
       .then(function(r) { return r.text(); })
       .then(function(html) {
+        // Cria wrapper para parsear o HTML
         var wrapper = document.createElement('div');
         wrapper.innerHTML = html;
         document.body.appendChild(wrapper.firstElementChild); // backdrop
         document.body.appendChild(wrapper.lastElementChild);  // painel
-        callback && callback();
-      });
-  }
 
-  window.openLoginModal = function(callback, usersUrl) {
-    loadLoginPanel(function() {
-      var panel = document.getElementById('login-panel');
-      var backdrop = document.getElementById('login-backdrop');
-      panel.style.display = '';
-      backdrop.style.display = '';
-      var msg = document.getElementById('login_msg');
-      msg.textContent = '';
+        // Referências dos elementos
+        var userInp = document.getElementById('login_input_user');
+        var passInp = document.getElementById('login_input_pass');
+        var btnEntrar = document.getElementById('login_btn_entrar');
+        var btnCancelar = document.getElementById('login_btn_cancelar');
+        var msg = document.getElementById('login_msg');
 
-      function closeLogin() {
-        panel.style.display = 'none';
-        backdrop.style.display = 'none';
-      }
-      document.getElementById('login_cancelar').onclick = closeLogin;
+        // Foco inicial
+        userInp.focus();
 
-      document.onkeydown = function(ev) {
-        if (ev.key === "Escape") closeLogin();
-      };
-      backdrop.onclick = function(e) {
-        // não fecha ao clicar fora
-      };
+        btnCancelar.onclick = function(){
+          var panel = document.getElementById('login-panel');
+          var backdrop = document.getElementById('login-backdrop');
+          if (panel) panel.parentNode.removeChild(panel);
+          if (backdrop) backdrop.parentNode.removeChild(backdrop);
+        };
 
-      document.getElementById('login_entrar').onclick = function() {
-        var login = document.getElementById('login_input_user').value.trim();
-        var senha = document.getElementById('login_input_pass').value.trim();
-        if (!login || !senha) {
-          msg.textContent = "Digite usuário e senha.";
-          return;
-        }
-        fetch(usersUrl)
-          .then(function(r) { return r.json(); })
-          .then(function(users) {
-            var found = users.find(function(u) {
-              return (u.login === login && u.senha === senha);
+        btnEntrar.onclick = function(){
+          var login = userInp.value.trim();
+          var senha = passInp.value.trim();
+          msg.textContent = '';
+          fetch(usersUrl)
+            .then(function(r) { return r.json(); })
+            .then(function(users) {
+              // Garante compatibilidade com user/senha OU login/senha
+              var found = users.find(function(u) {
+                return (u.user || u.login) === login && u.senha === senha;
+              });
+              if (found) {
+                // Remove modal
+                var panel = document.getElementById('login-panel');
+                var backdrop = document.getElementById('login-backdrop');
+                if (panel) panel.parentNode.removeChild(panel);
+                if (backdrop) backdrop.parentNode.removeChild(backdrop);
+                if (typeof callback === 'function') callback(login);
+              } else {
+                msg.textContent = 'Usuário ou senha inválidos.';
+              }
+            })
+            .catch(function(e) {
+              msg.textContent = 'Falha ao validar usuário.';
             });
-            if (found) {
-              closeLogin();
-              if (typeof callback === 'function') callback(found.login);
-            } else {
-              msg.textContent = "Usuário ou senha inválidos.";
-            }
-          })
-          .catch(function() {
-            msg.textContent = "Erro ao buscar usuários.";
-          });
-      };
-    });
+        };
+      });
   };
 })();

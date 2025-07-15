@@ -38,12 +38,18 @@
 
   // ----------- LOGIN -----------
   window.loginTaxonomista = function(callbackAfterLogin) {
+    console.log('[DEBUG][loginTaxonomista] Chamado loginTaxonomista()');
     loadScriptOnce(LOGIN_URL, 'loginLoaded', function() {
+      console.log('[DEBUG][loginTaxonomista] login.js carregado, chamando openLoginModal');
       window.openLoginModal(function(user){
         loggedUser = user;
+        console.log('[DEBUG][loginTaxonomista] Login realizado com usuário:', user);
         window.hideModelMissingNotice && window.hideModelMissingNotice();
         startRotulagemUX();
-        if (typeof callbackAfterLogin === 'function') callbackAfterLogin(user);
+        if (typeof callbackAfterLogin === 'function') {
+          console.log('[DEBUG][loginTaxonomista] Chamando callbackAfterLogin.');
+          callbackAfterLogin(user);
+        }
       }, USERS_URL);
     });
   };
@@ -67,9 +73,10 @@
         });
       }
       options = Array.from(new Set(options.filter(Boolean)));
+      console.log('[DEBUG][rotulagemManual] Abrindo painel de rotulagem com opções:', options);
       window.openRotulagemModal(data, options, loggedUser, extraMsg || 'Rotule este exemplo e salve!');
     } catch (err) {
-      console.error('Erro ao preparar dados para rotulagem:', err);
+      console.error('[DEBUG][rotulagemManual] Erro ao preparar dados para rotulagem:', err);
     }
   }
 
@@ -92,10 +99,8 @@
       .then(function(resp) { return resp.json(); })
       .then(function(resp) {
         if (resp && resp.sessao && resp.confidence >= 0.8) {
-          // Sugerir sessão detectada (pode exibir mensagem, destacar na tela, etc)
           alert('Sessão detectada: ' + resp.sessao + ' (confiança: ' + Math.round(resp.confidence*100) + '%)');
         } else {
-          // Confiança baixa ou falha => painel de rotulagem manual
           rotulagemManual(el, "Confiança baixa ou sessão não encontrada.<br>Rotule manualmente.");
         }
       })
