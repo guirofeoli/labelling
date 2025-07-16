@@ -1,0 +1,45 @@
+#login-backdrop {
+  position: fixed;
+  top:0; left:0; width:100vw; height:100vh;
+  background: rgba(0,0,0,0.35);
+  z-index: 99999999;
+  display: none;
+}
+#login-panel {
+  position: fixed;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 14px;
+  border: 2px solid #333;
+  box-shadow: 0 8px 32px #0007;
+  min-width: 320px;
+  padding: 28px 30px 22px 30px;
+  font-family: sans-serif;
+  z-index: 99999999;
+  display: none;
+}
+#login-panel input {
+  display: block;
+  width: 98%;
+  font-size: 1em;
+  margin-bottom: 12px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid #bbb;
+  box-sizing: border-box;
+}
+#login-panel button {
+  padding: 6px 24px;
+  border: none;
+  border-radius: 7px;
+  background: #149C3B;
+  color: #fff;
+  font-size: 1em;
+  cursor: pointer;
+}
+#login-panel button#login_cancelar {
+  background: #999;
+  color: #fff;
+}
