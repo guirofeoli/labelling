@@ -268,36 +268,11 @@ window.loginTaxonomista = function(callbackAfterLogin) {
           document.getElementById('rotulagem_msg').textContent = 'Digite a sessão.';
           return;
         }
-        var exemplo = Object.assign({}, data, {
-          sessao: sessao,
-          usuario: loggedUser || null,
-          timestamp: new Date().toISOString()
-        });
-        fetch(BACKEND_URL + '/api/rotulo', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(exemplo)
-        })
-        .then(resp => resp.json())
-        .then(resp => {
-          if (resp.ok) {
-            closeModal();
-            // Feedback
-            var okmsg = document.createElement('div');
-            okmsg.style = 'position:fixed;top:20%;left:50%;transform:translate(-50%,0);background:#149C3B;color:#fff;padding:13px 23px;border-radius:9px;font-size:1.08em;z-index:100000;';
-            okmsg.textContent = "Exemplo salvo! Total rotulados: " + (resp.total || '');
-            document.body.appendChild(okmsg);
-            setTimeout(function(){ okmsg.parentNode && okmsg.parentNode.removeChild(okmsg); }, 1400);
-          } else {
-            document.getElementById('rotulagem_msg').textContent = resp.msg || 'Erro ao salvar.';
-          }
-        })
-        .catch(function(e){
-          document.getElementById('rotulagem_msg').textContent = 'Falha ao salvar: ' + e;
-        });
-      };
-    });
-  };
+      }, 100); // Pequeno delay para garantir DOM atualizado
+    }, USERS_URL);
+  });
+};
+
 
   // ----------- ROTULAGEM MANUAL / AUTOMÁTICA -----------
   function rotulagemManual(el, extraMsg) {
