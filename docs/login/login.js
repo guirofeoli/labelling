@@ -1,6 +1,7 @@
 (function() {
   // Versão para depuração
   window.LOGIN_MODAL_VERSION = 2;
+
   var LOGIN_HTML = 'https://guirofeoli.github.io/labelling/login/login.html';
   var LOGIN_CSS  = 'https://guirofeoli.github.io/labelling/login/login.css';
 
@@ -91,5 +92,6 @@
       };
     });
   };
+
 
 })();
