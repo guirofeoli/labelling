@@ -1,0 +1,8 @@
+flask
+sentence-transformers
+numpy
+scikit-learn
+gunicorn
+flask-cors
+joblib
+tensorflow
