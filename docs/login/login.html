@@ -1,13 +1,13 @@
-<div id="login-backdrop" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:999998;background:rgba(0,0,0,0.37)"></div>
-<div id="login-panel" style="display:block;">
-  <div class="login-panel-content">
-    <h3 style="margin-top:0;font-size:1.2em;">Login para rotulagem</h3>
-    <input type="text" id="login_input_user" placeholder="Usuário" autocomplete="username" style="margin-bottom:10px;width:100%">
-    <input type="password" id="login_input_pass" placeholder="Senha" autocomplete="current-password" style="margin-bottom:10px;width:100%">
-    <div style="margin-top:6px;">
-      <button id="login_btn_entrar" style="margin-right:8px;">Entrar</button>
-      <button id="login_btn_cancelar">Cancelar</button>
+<div id="login-backdrop" style="display:none;"></div>
+<div id="login-panel" style="display:none;">
+  <div class="login-title">Login do Taxonomista</div>
+  <form id="login_form">
+    <input id="login_input_user" type="text" placeholder="Usuário">
+    <input id="login_input_pass" type="password" placeholder="Senha">
+    <div id="login_msg" class="login-msg"></div>
+    <div style="margin-top:18px;">
+      <button id="login_entrar" class="btn-login" type="submit">Entrar</button>
+      <button id="login_cancelar" class="btn-cancel" type="button">Cancelar</button>
     </div>
-    <div id="login_msg" style="color:red;margin-top:11px;"></div>
-  </div>
+  </form>
 </div>
