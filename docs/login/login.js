@@ -1,4 +1,7 @@
 (function() {
+  // Versão para depuração
+  window.LOGIN_MODAL_VERSION = 2;
+
   var LOGIN_HTML = 'https://guirofeoli.github.io/labelling/login/login.html';
   var LOGIN_CSS  = 'https://guirofeoli.github.io/labelling/login/login.css';
 
@@ -37,7 +40,6 @@
       document.getElementById('login_input_pass').value = '';
       document.getElementById('login_msg').textContent = '';
 
-
       // Bloqueia navegação enquanto aberto
       document.body.style.overflow = 'hidden';
 
@@ -47,6 +49,8 @@
         backdrop.style.display = 'none';
         document.body.style.overflow = '';
         document.onkeydown = null;
+        if (panel.parentNode) panel.parentNode.removeChild(panel);
+        if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
       }
       document.getElementById('login_cancelar').onclick = closeModal;
       backdrop.onclick = function() {}; // Não fecha ao clicar fora

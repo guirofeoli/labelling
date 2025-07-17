@@ -1,4 +1,5 @@
 (function() {
+  // Versão simplificada do painel de rotulagem
   var UTILS_URL      = 'https://guirofeoli.github.io/labelling/utils.js';
   var ROTULAGEM_HTML = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.html';
   var ROTULAGEM_CSS  = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.css';
@@ -39,89 +40,96 @@
   }
 
   // ----------- MODAL DE ROTULAGEM -----------
-  var ROTULAGEM_HTML_URL = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.html';
-  var ROTULAGEM_CSS_URL  = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.css';
+  var ROTULAGEM_HTML = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.html';
+  var ROTULAGEM_CSS  = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.css';
 
-  window.openRotulagemModal = function(data, options, user, extraMsg) {
-    // Remove instâncias anteriores
-    var old = document.getElementById('rotulagem-panel');
-    if (old) old.parentNode.removeChild(old);
-    var oldBack = document.getElementById('rotulagem-backdrop');
-    if (oldBack) oldBack.parentNode.removeChild(oldBack);
-
-    // Carrega CSS se necessário
-    if (!document.getElementById('rotulagem-css')) {
+  function loadRotulagemPanel(callback) {
+    if (document.getElementById('rotulagem-panel')) return callback();
+    var cssId = 'rotulagem-css';
+    if (!document.getElementById(cssId)) {
       var link = document.createElement('link');
-      link.id = 'rotulagem-css';
+      link.id = cssId;
       link.rel = 'stylesheet';
-      link.href = ROTULAGEM_CSS_URL;
+      link.href = ROTULAGEM_CSS;
       document.head.appendChild(link);
     }
+    fetch(ROTULAGEM_HTML)
 
-    // Carrega HTML do modal
-    fetch(ROTULAGEM_HTML_URL)
       .then(function(r) { return r.text(); })
       .then(function(html) {
         var wrapper = document.createElement('div');
         wrapper.innerHTML = html;
-        var backdrop = wrapper.firstElementChild;
-        var panel = wrapper.lastElementChild;
-        document.body.appendChild(backdrop);
-        document.body.appendChild(panel);
-
-        var input = document.getElementById('rotulagem_input');
-        var datalist = document.getElementById('rotulagem_options');
-        var msg = document.getElementById('rotulagem_msg');
-        var extra = document.getElementById('rotulagem-msg-extra');
-
-        extra.innerHTML = extraMsg || '';
-        input.value = '';
-        datalist.innerHTML = '';
-
-        if (Array.isArray(options)) {
-          options.forEach(function(opt) {
-            var optEl = document.createElement('option');
-            optEl.value = opt;
-            datalist.appendChild(optEl);
-          });
-        }
-
-        document.getElementById('rotulagem_cancelar').onclick = function() {
-          panel.parentNode.removeChild(panel);
-          backdrop.parentNode.removeChild(backdrop);
-        };
-
-        document.getElementById('rotulagem_salvar').onclick = function() {
-          var sessao = input.value.trim();
-          if (!sessao) {
-            msg.textContent = 'Informe a sessão.';
-            return;
-          }
-          msg.textContent = '';
-          var payload = Object.assign({}, data, {
-            sessao: sessao,
-            user: user
-          });
-          fetch(BACKEND_URL + '/api/rotulo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          })
-          .then(function(resp) { return resp.json(); })
-          .then(function(resp) {
-            console.log('[ROTULAGEM] Salvo:', resp);
-            panel.parentNode.removeChild(panel);
-            backdrop.parentNode.removeChild(backdrop);
-          })
-          .catch(function() {
-            msg.textContent = 'Falha ao salvar rótulo.';
-          });
-        };
-
-        backdrop.style.display = 'block';
-        panel.style.display = 'block';
-        input.focus();
+        document.body.appendChild(wrapper.firstElementChild); // backdrop
+        document.body.appendChild(wrapper.lastElementChild);  // painel
+        callback();
       });
+  }
+
+  window.openRotulagemModal = function(data, options, user, msgExtra) {
+    loadRotulagemPanel(function() {
+      var panel = document.getElementById('rotulagem-panel');
+      var backdrop = document.getElementById('rotulagem-backdrop');
+      panel.style.display = '';
+      backdrop.style.display = '';
+
+      document.getElementById('rotulagem-msg-extra').innerHTML = msgExtra || 'Selecione ou digite o nome da sessão desse elemento.';
+      document.getElementById('rotulagem_msg').textContent = '';
+      var dl = document.getElementById('rotulagem_options');
+      dl.innerHTML = '';
+      (options || []).forEach(function(opt) {
+        if (opt) {
+          var op = document.createElement('option');
+          op.value = opt;
+          dl.appendChild(op);
+        }
+      });
+      var inp = document.getElementById('rotulagem_input');
+      inp.value = '';
+      inp.focus();
+
+      function closeModal() {
+        panel.style.display = 'none';
+        backdrop.style.display = 'none';
+      }
+      document.getElementById('rotulagem_cancelar').onclick = closeModal;
+      document.onkeydown = function(ev) { if (ev.key === 'Escape') closeModal(); };
+      backdrop.onclick = function(e) {};
+
+      document.getElementById('rotulagem_salvar').onclick = function() {
+        var sessao = inp.value.trim();
+        if (!sessao) {
+          document.getElementById('rotulagem_msg').textContent = 'Digite a sessão.';
+          return;
+        }
+        var exemplo = Object.assign({}, data, {
+          sessao: sessao,
+          usuario: user || null,
+          timestamp: new Date().toISOString()
+        });
+        fetch(BACKEND_URL + '/api/rotulo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(exemplo)
+        })
+        .then(function(resp) { return resp.json(); })
+        .then(function(resp) {
+          if (resp.ok) {
+            closeModal();
+            var okmsg = document.createElement('div');
+            okmsg.style = 'position:fixed;top:20%;left:50%;transform:translate(-50%,0);background:#149C3B;color:#fff;padding:13px 23px;border-radius:9px;font-size:1.08em;z-index:100000;';
+            okmsg.textContent = 'Exemplo salvo! Total rotulados: ' + (resp.total || '');
+            document.body.appendChild(okmsg);
+            setTimeout(function(){ okmsg.parentNode && okmsg.parentNode.removeChild(okmsg); }, 1400);
+          } else {
+            document.getElementById('rotulagem_msg').textContent = resp.msg || 'Erro ao salvar.';
+          }
+        })
+        .catch(function(e){
+          document.getElementById('rotulagem_msg').textContent = 'Falha ao salvar: ' + e;
+        });
+      };
+    });
+
   };
 
   // ----------- LOGIN -----------
@@ -268,36 +276,11 @@ window.loginTaxonomista = function(callbackAfterLogin) {
           document.getElementById('rotulagem_msg').textContent = 'Digite a sessão.';
           return;
         }
-        var exemplo = Object.assign({}, data, {
-          sessao: sessao,
-          usuario: loggedUser || null,
-          timestamp: new Date().toISOString()
-        });
-        fetch(BACKEND_URL + '/api/rotulo', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(exemplo)
-        })
-        .then(resp => resp.json())
-        .then(resp => {
-          if (resp.ok) {
-            closeModal();
-            // Feedback
-            var okmsg = document.createElement('div');
-            okmsg.style = 'position:fixed;top:20%;left:50%;transform:translate(-50%,0);background:#149C3B;color:#fff;padding:13px 23px;border-radius:9px;font-size:1.08em;z-index:100000;';
-            okmsg.textContent = "Exemplo salvo! Total rotulados: " + (resp.total || '');
-            document.body.appendChild(okmsg);
-            setTimeout(function(){ okmsg.parentNode && okmsg.parentNode.removeChild(okmsg); }, 1400);
-          } else {
-            document.getElementById('rotulagem_msg').textContent = resp.msg || 'Erro ao salvar.';
-          }
-        })
-        .catch(function(e){
-          document.getElementById('rotulagem_msg').textContent = 'Falha ao salvar: ' + e;
-        });
-      };
-    });
-  };
+      }, 100); // Pequeno delay para garantir DOM atualizado
+    }, USERS_URL);
+  });
+};
+
 
   // ----------- ROTULAGEM MANUAL / AUTOMÁTICA -----------
   function rotulagemManual(el, extraMsg) {
@@ -358,20 +341,21 @@ window.loginTaxonomista = function(callbackAfterLogin) {
   }
 
   // Inicia listeners de clique conforme status do modelo
-  function ativarRotulagemUX() {
+  function startRotulagemUX() {
     if (rotulagemAtiva) {
-      console.log('[DEBUG][ativarRotulagemUX] Rotulagem já ativa, ignorando.');
+      console.log('[DEBUG][startRotulagemUX] Rotulagem já ativa, ignorando.');
+
       return;
     }
     rotulagemAtiva = true;
     window.hideModelMissingNotice && window.hideModelMissingNotice();
     loadScriptOnce(UTILS_URL, 'utilsLoaded', function() {
-      // ROTULAGEM_URL não é mais utilizado (a função openRotulagemModal já está neste arquivo)
+
       if (window.__rotulagem_taxonomia_click) {
         document.removeEventListener('click', window.__rotulagem_taxonomia_click, true);
       }
       window.__rotulagem_taxonomia_click = function(e) {
-        // NÃO abrir se painel/modal já está aberto
+
         if (
           document.getElementById('taxo-model-missing') ||
           document.getElementById('rotulagem-panel') ||

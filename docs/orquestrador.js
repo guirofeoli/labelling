@@ -37,6 +37,10 @@
   // Login do taxonomista
   window.loginTaxonomista = function(callbackAfterLogin) {
     loadScriptOnce(LOGIN_URL, 'loginLoaded', function() {
+      if (typeof window.openLoginModal !== 'function') {
+        console.error('[Login] Falha ao carregar login.js - openLoginModal indisponível');
+        return;
+      }
       window.openLoginModal(function(user){
         loggedUser = user;
         window.hideModelMissingNotice && window.hideModelMissingNotice();
