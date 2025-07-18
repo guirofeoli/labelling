@@ -35,7 +35,7 @@
     return candidates.reverse();
   }
 
-  // Modal lógica (como já está, mas garantindo reaparecimento)
+  // Modal lógica (garante reaparecimento e logs)
   function openRotulagemModal(data, sugestoes, user, msgExtra) {
     // Remove modal existente, se houver
     var panel = document.getElementById('rotulagem-panel');
@@ -92,6 +92,8 @@
     function closeModal() {
       document.getElementById('rotulagem-panel')?.remove();
       document.getElementById('rotulagem-backdrop')?.remove();
+      // Garante reativação do listener
+      document.addEventListener("click", window.__rotulagem_taxonomia_click, true);
     }
     document.getElementById('rotulagem_cancelar').onclick = function () {
       closeModal();
@@ -136,6 +138,9 @@
   // Main handler de clique
   window.__rotulagem_taxonomia_click = function (e) {
     try {
+      // Remove listener pra evitar duplo modal!
+      document.removeEventListener("click", window.__rotulagem_taxonomia_click, true);
+
       var element = e.target;
       var candidatos = getSessionCandidates(element);
       // LOG DE CLIQUE
@@ -172,6 +177,10 @@
           // fallback para candidatos DOM se nada
           if (!sugestoes.length) sugestoes = candidatos.map(c => c.text);
           openRotulagemModal(data, sugestoes, window.loggedUser, "Rotule este exemplo e salve!");
+        })
+        .catch(err => {
+          console.error("[Rotulagem-LOG] Falha ao sugerir sessão:", err);
+          openRotulagemModal(data, candidatos.map(c => c.text), window.loggedUser, "Rotule este exemplo e salve!");
         });
     } catch (err) {
       alert("Falha ao sugerir sessão: " + err);
