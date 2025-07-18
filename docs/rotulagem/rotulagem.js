@@ -1,41 +1,45 @@
 (function () {
-  // Função para buscar candidatos reais de sessão acima do elemento clicado
-  function getSessionCandidates(element) {
+  // Utilitário: sugestões reais acima do elemento clicado
+  function getSessionTextsAbove(element) {
     var candidates = [];
-    var current = element;
-    var STOP_TAGS = ["BODY", "HTML"];
-    while (current && STOP_TAGS.indexOf(current.tagName) === -1) {
-      var tag = current.tagName || "";
-      var classes = (current.className || "").toLowerCase();
+    var current = element.parentElement;
+    var KEYWORDS = /(session|header|menu|whatsapp|footer|modal|swiper|article|main|hero)/i;
+
+    while (
+      current &&
+      current.tagName &&
+      current.tagName !== 'BODY' &&
+      current.tagName !== 'HTML'
+    ) {
+      var tag = current.tagName;
+      var classes = (current.className || '').toLowerCase();
+      var text = (current.innerText || '').trim();
       var fontSize = parseFloat(window.getComputedStyle(current).fontSize) || 0;
-      var text = (current.innerText || "").trim();
 
-      // Critérios de sessão
-      var isHeading = tag === "H1" || tag === "H2";
-      var isLargeParagraph =
-        (tag === "P" || classes.indexOf("paragraph") !== -1 || classes.indexOf("paragrafo") !== -1) && fontSize > 20;
-      var isSpecial =
-        /(session|header|menu|whatsapp|footer|modal|swiper|article|main|hero)/.test(tag.toLowerCase() + " " + classes);
-
-      if (
-        (isHeading && text.length > 0) ||
-        (isLargeParagraph && text.length > 0) ||
-        (isSpecial && text.length > 0)
-      ) {
-        candidates.push({
-          tag: tag,
-          classes: classes,
-          text: text,
-          fontSize: fontSize,
-          selector: window.getFullSelector ? getFullSelector(current) : "",
-        });
+      // Critério 1: H1/H2
+      if ((tag === 'H1' || tag === 'H2') && text.length > 0) {
+        candidates.push(text);
       }
+      // Critério 2: Parágrafo real
+      else if (
+        (tag === 'P' || classes.indexOf('paragraph') !== -1 || classes.indexOf('paragrafo') !== -1) &&
+        fontSize > 20 &&
+        text.length > 0
+      ) {
+        candidates.push(text);
+      }
+      // Critério 3: Palavras-chave em tag/classe
+      else if ((KEYWORDS.test(tag) || KEYWORDS.test(classes)) && text.length > 0) {
+        candidates.push(text);
+      }
+
       current = current.parentElement;
     }
-    return candidates.reverse();
+    // Remove duplicados e vazios
+    return Array.from(new Set(candidates.filter(Boolean)));
   }
 
-  // Modal lógica (garantindo reaparecimento e logs)
+  // Função para abrir o modal
   function openRotulagemModal(data, sugestoes, user, msgExtra) {
     // Remove modal existente, se houver
     var panel = document.getElementById('rotulagem-panel');
@@ -44,23 +48,23 @@
     if (backdrop) backdrop.remove();
 
     // Adiciona CSS (apenas 1x)
-    if (!document.getElementById("rotulagem-css")) {
+    if (!document.getElementById('rotulagem-css')) {
       var link = document.createElement('link');
-      link.id = "rotulagem-css";
-      link.rel = "stylesheet";
-      link.href = "https://guirofeoli.github.io/labelling/rotulagem/rotulagem.css";
+      link.id = 'rotulagem-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.css';
       document.head.appendChild(link);
     }
 
-    // Cria HTML
+    // Cria HTML do modal
     var divBackdrop = document.createElement('div');
     divBackdrop.id = 'rotulagem-backdrop';
-    divBackdrop.style.display = "block";
+    divBackdrop.style.display = 'block';
     document.body.appendChild(divBackdrop);
 
     var divPanel = document.createElement('div');
     divPanel.id = 'rotulagem-panel';
-    divPanel.style.display = "block";
+    divPanel.style.display = 'block';
     divPanel.innerHTML = `
       <h3>Rotular Sessão do Elemento</h3>
       <div id="rotulagem-msg-extra">${msgExtra || ""}</div>
@@ -74,7 +78,7 @@
     `;
     document.body.appendChild(divPanel);
 
-    // Popular datalist
+    // Popula o datalist
     var dl = document.getElementById('rotulagem_options');
     dl.innerHTML = '';
     (sugestoes || []).forEach(function (opt) {
@@ -95,8 +99,6 @@
     }
     document.getElementById('rotulagem_cancelar').onclick = function () {
       closeModal();
-      // Reativa listener (garantido)
-      activateRotulagemListener();
     };
     document.getElementById('rotulagem_salvar').onclick = function () {
       var sessao = inp.value.trim();
@@ -109,18 +111,17 @@
         usuario: user || null,
         timestamp: new Date().toISOString()
       });
-      // LOG NO FRONT
-      console.log("[Rotulagem-LOG] Salvando exemplo:", exemplo);
-      fetch("https://labelling-production.up.railway.app/api/rotulo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      // LOG no front
+      console.log('[Rotulagem-LOG] Salvando exemplo:', exemplo);
+      fetch('https://labelling-production.up.railway.app/api/rotulo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(exemplo)
       })
         .then(r => r.json())
         .then(resp => {
-          console.log("[Rotulagem-LOG] Resposta do backend:", resp);
+          console.log('[Rotulagem-LOG] Resposta do backend:', resp);
           closeModal();
-          activateRotulagemListener();
         })
         .catch(e => {
           document.getElementById('rotulagem_msg').textContent = 'Erro ao salvar: ' + e;
@@ -129,23 +130,19 @@
 
     // ESC fecha
     document.onkeydown = function (ev) {
-      if (ev.key === "Escape") {
-        closeModal();
-        activateRotulagemListener();
-      }
+      if (ev.key === "Escape") closeModal();
     };
-
-    // Bloqueia clique no backdrop (não fecha ao clicar fora)
+    // Não fecha ao clicar no backdrop
     divBackdrop.onclick = function (e) {};
   }
 
   // Main handler de clique
-  function rotulagemTaxonomiaClick(e) {
+  function handleRotulagemClick(e) {
     try {
       var element = e.target;
-      var candidatos = getSessionCandidates(element);
-      // LOG DE CLIQUE
-      console.log("[Rotulagem-LOG] Clique detectado. Candidato(s):", candidatos);
+      var sugestoes = getSessionTextsAbove(element);
+      // LOG de clique e sugestões
+      console.log('[Rotulagem-LOG] Clique detectado em:', element, 'Sugestões:', sugestoes);
 
       var data = {
         clicked: {
@@ -154,54 +151,23 @@
           text: (element.innerText || "").trim(),
           fontSize: parseFloat(window.getComputedStyle(element).fontSize) || 0,
           selector: window.getFullSelector ? getFullSelector(element) : "",
-        },
-        acima: candidatos
+        }
+        // Se quiser salvar mais contexto, adicione aqui
       };
 
-      // Chama backend inteligente
-      fetch("https://labelling-production.up.railway.app/api/inteligencia", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-      })
-        .then(r => r.json())
-        .then(resp => {
-          console.log("[Rotulagem-LOG] Sugestão do backend:", resp);
-          // Prioriza sugestão do backend, preenche datalist
-          var sugestoes = [];
-          if (resp && resp.sessao) sugestoes.push(resp.sessao);
-          if (resp && resp.options && Array.isArray(resp.options)) {
-            resp.options.forEach(function (s) {
-              if (s && sugestoes.indexOf(s) === -1) sugestoes.push(s);
-            });
-          }
-          // fallback para candidatos DOM se nada
-          if (!sugestoes.length) sugestoes = candidatos.map(c => c.text).filter(Boolean);
-          openRotulagemModal(data, sugestoes, window.loggedUser, "Rotule este exemplo e salve!");
-        })
-        .catch(function (err) {
-          console.error("[Rotulagem-LOG] Erro ao consultar inteligência:", err);
-          var sugestoes = candidatos.map(c => c.text).filter(Boolean);
-          openRotulagemModal(data, sugestoes, window.loggedUser, "Rotule este exemplo e salve! (Backend offline)");
-        });
+      openRotulagemModal(data, sugestoes.length ? sugestoes : ['header', 'main', 'menu', 'footer'], window.loggedUser, "Rotule este exemplo e salve!");
     } catch (err) {
-      alert("Falha ao sugerir sessão: " + err);
+      alert('Falha ao sugerir sessão: ' + err);
       console.error(err);
     }
   }
 
-  // Garante sempre o listener ativo
-  function activateRotulagemListener() {
-    document.removeEventListener("click", rotulagemTaxonomiaClick, true);
-    setTimeout(function () {
-      document.addEventListener("click", rotulagemTaxonomiaClick, true);
-      console.log("[Rotulagem-LOG] Listener de clique reativado.");
-    }, 30);
+  // Remove listener duplicado
+  if (window.__rotulagem_taxonomia_click) {
+    document.removeEventListener('click', window.__rotulagem_taxonomia_click, true);
   }
+  window.__rotulagem_taxonomia_click = handleRotulagemClick;
+  document.addEventListener('click', window.__rotulagem_taxonomia_click, true);
 
-  // Ativa listener ao carregar o script
-  activateRotulagemListener();
-  window.openRotulagemModal = openRotulagemModal;
-  window.__rotulagem_taxonomia_click = rotulagemTaxonomiaClick;
-  console.log("[Rotulagem-LOG] Listener de clique ativo.");
+  console.log('[Rotulagem-LOG] Listener de clique ativo.');
 })();
