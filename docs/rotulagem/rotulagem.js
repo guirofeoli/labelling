@@ -1,9 +1,17 @@
 (function() {
+  var BACKEND_URL = 'https://labelling-production.up.railway.app';
   var ROTULAGEM_HTML = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.html';
   var ROTULAGEM_CSS  = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.css';
 
-  // Carrega CSS e HTML se necessário
+  // Remove painéis antigos antes de inserir
+  function cleanPanels() {
+    document.getElementById('rotulagem-backdrop')?.remove();
+    document.getElementById('rotulagem-panel')?.remove();
+  }
+
   function loadRotulagemPanel(callback) {
+    cleanPanels();
+    // Garante que o CSS está carregado
     if (!document.getElementById('rotulagem-css')) {
       var link = document.createElement('link');
       link.id = 'rotulagem-css';
@@ -11,33 +19,30 @@
       link.href = ROTULAGEM_CSS;
       document.head.appendChild(link);
     }
-    // Insere HTML se não existe
-    if (!document.getElementById('rotulagem-panel')) {
-      fetch(ROTULAGEM_HTML)
-        .then(r => r.text())
-        .then(function(html) {
-          var wrapper = document.createElement('div');
-          wrapper.innerHTML = html;
-          // Adiciona backdrop e painel
-          document.body.appendChild(wrapper.firstElementChild); // backdrop
-          document.body.appendChild(wrapper.lastElementChild);  // painel
-          if (callback) callback();
-        });
-    } else {
-      if (callback) callback();
-    }
+    fetch(ROTULAGEM_HTML)
+      .then(r => r.text())
+      .then(html => {
+        var wrapper = document.createElement('div');
+        wrapper.innerHTML = html;
+        document.body.appendChild(wrapper.children[0]); // backdrop
+        document.body.appendChild(wrapper.children[1]); // painel
+        callback();
+      });
   }
 
-  // Abre o modal de rotulagem
-  window.openRotulagemModal = function(data, options, user, msgExtra) {
+  // A função global para abrir o painel
+  window.openRotulagemModal = function(data, options, loggedUser, msgExtra) {
     loadRotulagemPanel(function() {
       var panel = document.getElementById('rotulagem-panel');
       var backdrop = document.getElementById('rotulagem-backdrop');
-      panel.style.display = '';
-      backdrop.style.display = '';
+      panel.style.display = 'block';
+      backdrop.style.display = 'block';
 
+      // Mensagem extra
       document.getElementById('rotulagem-msg-extra').innerHTML = msgExtra || 'Selecione ou digite o nome da sessão desse elemento.';
       document.getElementById('rotulagem_msg').textContent = '';
+
+      // Sugestões
       var dl = document.getElementById('rotulagem_options');
       dl.innerHTML = '';
       (options || []).forEach(function(opt) {
@@ -47,19 +52,22 @@
           dl.appendChild(op);
         }
       });
+      // Input
       var inp = document.getElementById('rotulagem_input');
       inp.value = '';
       inp.focus();
 
-      // Fechar modal
+      // Cancelar
       function closeModal() {
         panel.style.display = 'none';
         backdrop.style.display = 'none';
+        cleanPanels();
       }
       document.getElementById('rotulagem_cancelar').onclick = closeModal;
-      document.onkeydown = function(ev) { if (ev.key === 'Escape') closeModal(); };
-      backdrop.onclick = function() {};
+      backdrop.onclick = closeModal;
+      document.onkeydown = function(ev) { if (ev.key === "Escape") closeModal(); };
 
+      // Salvar
       document.getElementById('rotulagem_salvar').onclick = function() {
         var sessao = inp.value.trim();
         if (!sessao) {
@@ -68,10 +76,10 @@
         }
         var exemplo = Object.assign({}, data, {
           sessao: sessao,
-          usuario: user || null,
+          usuario: loggedUser || null,
           timestamp: new Date().toISOString()
         });
-        fetch('https://labelling-production.up.railway.app/api/rotulo', {
+        fetch(BACKEND_URL + '/api/rotulo', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(exemplo)
@@ -95,6 +103,4 @@
       };
     });
   };
-
-  console.log('[Rotulagem] Script carregado.');
 })();
