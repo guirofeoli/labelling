@@ -9,10 +9,11 @@ DATASET = os.path.join('data', 'exemplos.json')
 MODEL_FILE = os.path.join('data', 'modelo.pkl')
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  # TROQUE '*' PELO DOMÍNIO PARA PRODUÇÃO!
+CORS(app, resources={r"/*": {"origins": "*"}})  # Troque '*' por seu domínio em produção!
 
 @app.route('/api/inteligencia', methods=['POST'])
 def inteligencia():
+    # Recebe features do DOM e retorna sugestão de sessão via ML (TensorFlow + RandomForest)
     data = request.json
     result = predict_session(data)
     return jsonify(result)
