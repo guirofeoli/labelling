@@ -5,33 +5,32 @@ import json
 from models.predict import predict_session
 from models.treinamento import treinar_modelo
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
 DATASET = os.path.join('data', 'exemplos.json')
 MODEL_FILE = os.path.join('data', 'modelo.pkl')
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  # Troque '*' para o domínio real em produção!
+CORS(app, resources={r"/*": {"origins": "*"}})
 
-# --- INTELIGENCIA: SUGESTÃO DA SESSÃO (com logs) ---
 @app.route('/api/inteligencia', methods=['POST'])
 def inteligencia():
     data = request.json
-    print("\n[LOG] Payload recebido em /api/inteligencia:")
-    print(json.dumps(data, indent=2, ensure_ascii=False))
-    # Chama modelo Python inteligente (Random Forest, TensorFlow, etc)
+    logging.info(f'[API] /api/inteligencia RECEBIDO: {json.dumps(data)[:2000]}')
     try:
-        resultado = predict_session(data)
-        print("[LOG] Sugestão/modelo retornou:", resultado)
+        result = predict_session(data)
+        logging.info(f'[API] /api/inteligencia RESPOSTA: {json.dumps(result)}')
     except Exception as e:
-        print("[ERRO] Falha na predição/modelo:", str(e))
-        resultado = {"sessao": None, "sugestoes": []}
-    return jsonify(resultado)
+        logging.error(f'[API] /api/inteligencia ERRO: {str(e)}')
+        result = {'sessao': None, 'confidence': 0, 'sugestoes': []}
+    return jsonify(result)
 
-# --- ROTULAR E SALVAR EXEMPLOS (com logs) ---
 @app.route('/api/rotulo', methods=['POST'])
 def rotulo():
     exemplo = request.json
-    print("\n[LOG] Rótulo salvo em /api/rotulo:")
-    print(json.dumps(exemplo, indent=2, ensure_ascii=False))
+    logging.info(f'[API] /api/rotulo SALVANDO: {json.dumps(exemplo)}')
     data_dir = os.path.join('data')
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
@@ -47,22 +46,20 @@ def rotulo():
     exemplos.append(exemplo)
     with open(dataset_path, 'w', encoding='utf-8') as f:
         json.dump(exemplos, f, ensure_ascii=False, indent=2)
-    print(f"[LOG] Total de exemplos salvos: {len(exemplos)}")
+    logging.info(f'[API] /api/rotulo TOTAL: {len(exemplos)} exemplos')
     return jsonify({'ok': True, 'msg': 'Exemplo salvo para treino', 'total': len(exemplos)})
 
-# --- TREINAR O MODELO ---
 @app.route('/api/treinamento', methods=['POST'])
 def treinamento():
-    print("\n[LOG] Iniciando treinamento do modelo...")
+    logging.info('[API] /api/treinamento chamado')
     result = treinar_modelo()
-    print("[LOG] Resultado do treinamento:", result)
+    logging.info(f'[API] /api/treinamento RESPOSTA: {json.dumps(result)}')
     return jsonify(result)
 
-# --- STATUS DO MODELO ---
 @app.route('/api/model_status')
 def model_status():
     exists = os.path.exists(MODEL_FILE)
-    print(f"[LOG] Consulta de status do modelo: {'Treinado' if exists else 'Não treinado'}")
+    logging.info(f'[API] /api/model_status -> {exists}')
     return jsonify({'model_trained': exists})
 
 @app.route('/')
