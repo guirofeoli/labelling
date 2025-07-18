@@ -24,7 +24,7 @@ def inteligencia():
         logging.info(f'[API] /api/inteligencia RESPOSTA: {json.dumps(result)}')
     except Exception as e:
         logging.error(f'[API] /api/inteligencia ERRO: {str(e)}')
-        result = {'sessao': None, 'confidence': 0, 'sugestoes': []}
+        result = {'sessao': None, 'confidence': 0, 'options': []}
     return jsonify(result)
 
 @app.route('/api/rotulo', methods=['POST'])
