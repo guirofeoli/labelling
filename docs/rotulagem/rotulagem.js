@@ -5,13 +5,15 @@
 
   // Remove painéis antigos antes de inserir
   function cleanPanels() {
-    document.getElementById('rotulagem-backdrop')?.remove();
-    document.getElementById('rotulagem-panel')?.remove();
+    var b = document.getElementById('rotulagem-backdrop');
+    if (b) b.remove();
+    var p = document.getElementById('rotulagem-panel');
+    if (p) p.remove();
   }
 
   function loadRotulagemPanel(callback) {
     cleanPanels();
-    // Garante que o CSS está carregado
+    // CSS (carrega só uma vez)
     if (!document.getElementById('rotulagem-css')) {
       var link = document.createElement('link');
       link.id = 'rotulagem-css';
@@ -21,16 +23,18 @@
     }
     fetch(ROTULAGEM_HTML)
       .then(r => r.text())
-      .then(html => {
-        var wrapper = document.createElement('div');
-        wrapper.innerHTML = html;
-        document.body.appendChild(wrapper.children[0]); // backdrop
-        document.body.appendChild(wrapper.children[1]); // painel
-        callback();
+      .then(function(html) {
+        // Extrai exatamente os elementos pelo id, independente da ordem no HTML
+        var temp = document.createElement('div');
+        temp.innerHTML = html;
+        var backdrop = temp.querySelector('#rotulagem-backdrop');
+        var panel = temp.querySelector('#rotulagem-panel');
+        document.body.appendChild(backdrop);
+        document.body.appendChild(panel);
+        if (callback) callback();
       });
   }
 
-  // A função global para abrir o painel
   window.openRotulagemModal = function(data, options, loggedUser, msgExtra) {
     loadRotulagemPanel(function() {
       var panel = document.getElementById('rotulagem-panel');
