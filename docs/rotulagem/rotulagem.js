@@ -35,7 +35,7 @@
     return candidates.reverse();
   }
 
-  // Modal lógica (garante reaparecimento e logs)
+  // Modal lógica (garantindo reaparecimento e logs)
   function openRotulagemModal(data, sugestoes, user, msgExtra) {
     // Remove modal existente, se houver
     var panel = document.getElementById('rotulagem-panel');
@@ -92,11 +92,11 @@
     function closeModal() {
       document.getElementById('rotulagem-panel')?.remove();
       document.getElementById('rotulagem-backdrop')?.remove();
-      // Garante reativação do listener
-      document.addEventListener("click", window.__rotulagem_taxonomia_click, true);
     }
     document.getElementById('rotulagem_cancelar').onclick = function () {
       closeModal();
+      // Reativa listener (garantido)
+      activateRotulagemListener();
     };
     document.getElementById('rotulagem_salvar').onclick = function () {
       var sessao = inp.value.trim();
@@ -120,6 +120,7 @@
         .then(resp => {
           console.log("[Rotulagem-LOG] Resposta do backend:", resp);
           closeModal();
+          activateRotulagemListener();
         })
         .catch(e => {
           document.getElementById('rotulagem_msg').textContent = 'Erro ao salvar: ' + e;
@@ -128,7 +129,10 @@
 
     // ESC fecha
     document.onkeydown = function (ev) {
-      if (ev.key === "Escape") closeModal();
+      if (ev.key === "Escape") {
+        closeModal();
+        activateRotulagemListener();
+      }
     };
 
     // Bloqueia clique no backdrop (não fecha ao clicar fora)
@@ -136,11 +140,8 @@
   }
 
   // Main handler de clique
-  window.__rotulagem_taxonomia_click = function (e) {
+  function rotulagemTaxonomiaClick(e) {
     try {
-      // Remove listener pra evitar duplo modal!
-      document.removeEventListener("click", window.__rotulagem_taxonomia_click, true);
-
       var element = e.target;
       var candidatos = getSessionCandidates(element);
       // LOG DE CLIQUE
@@ -169,27 +170,38 @@
           // Prioriza sugestão do backend, preenche datalist
           var sugestoes = [];
           if (resp && resp.sessao) sugestoes.push(resp.sessao);
-          if (resp && resp.sugestoes && Array.isArray(resp.sugestoes)) {
-            resp.sugestoes.forEach(function (s) {
+          if (resp && resp.options && Array.isArray(resp.options)) {
+            resp.options.forEach(function (s) {
               if (s && sugestoes.indexOf(s) === -1) sugestoes.push(s);
             });
           }
           // fallback para candidatos DOM se nada
-          if (!sugestoes.length) sugestoes = candidatos.map(c => c.text);
+          if (!sugestoes.length) sugestoes = candidatos.map(c => c.text).filter(Boolean);
           openRotulagemModal(data, sugestoes, window.loggedUser, "Rotule este exemplo e salve!");
         })
-        .catch(err => {
-          console.error("[Rotulagem-LOG] Falha ao sugerir sessão:", err);
-          openRotulagemModal(data, candidatos.map(c => c.text), window.loggedUser, "Rotule este exemplo e salve!");
+        .catch(function (err) {
+          console.error("[Rotulagem-LOG] Erro ao consultar inteligência:", err);
+          var sugestoes = candidatos.map(c => c.text).filter(Boolean);
+          openRotulagemModal(data, sugestoes, window.loggedUser, "Rotule este exemplo e salve! (Backend offline)");
         });
     } catch (err) {
       alert("Falha ao sugerir sessão: " + err);
       console.error(err);
     }
-  };
+  }
 
-  // Ativa listener SEMPRE (mesmo após salvar/cancelar)
-  document.addEventListener("click", window.__rotulagem_taxonomia_click, true);
+  // Garante sempre o listener ativo
+  function activateRotulagemListener() {
+    document.removeEventListener("click", rotulagemTaxonomiaClick, true);
+    setTimeout(function () {
+      document.addEventListener("click", rotulagemTaxonomiaClick, true);
+      console.log("[Rotulagem-LOG] Listener de clique reativado.");
+    }, 30);
+  }
+
+  // Ativa listener ao carregar o script
+  activateRotulagemListener();
+  window.openRotulagemModal = openRotulagemModal;
+  window.__rotulagem_taxonomia_click = rotulagemTaxonomiaClick;
   console.log("[Rotulagem-LOG] Listener de clique ativo.");
-
 })();
