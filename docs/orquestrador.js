@@ -1,5 +1,4 @@
 (function() {
-  // URLs para assets (ajustadas para raiz do GitHub Pages)
   var UTILS_URL     = 'https://guirofeoli.github.io/labelling/utils.js';
   var ROTULAGEM_URL = 'https://guirofeoli.github.io/labelling/rotulagem/rotulagem.js';
   var LOGIN_URL     = 'https://guirofeoli.github.io/labelling/login/login.js';
@@ -9,17 +8,13 @@
   var loggedUser = null;
   var modelReady = false;
 
-  // Avisa apenas via console quando o modelo ainda não foi treinado
+  // Exibe no console status de modelo ausente
   window.showModelMissingNotice = function() {
     console.log('[Labelling] Ainda não há modelo treinado.');
   };
-  // Mantida para compatibilidade - remove painel caso alguma versão antiga tenha criado
-  window.hideModelMissingNotice = function() {
-    var div = document.getElementById('taxo-model-missing');
-    if (div) div.parentNode.removeChild(div);
-  };
+  window.hideModelMissingNotice = function() {};
 
-  // Utilitário para carregar scripts externos uma única vez
+  // Loader seguro de scripts externos
   function loadScriptOnce(url, flag, callback) {
     if (window[flag]) return callback && callback();
     var script = document.createElement('script');
@@ -34,7 +29,7 @@
     document.head.appendChild(script);
   }
 
-  // Login do taxonomista
+  // Login + inicia rotulagem manual
   window.loginTaxonomista = function(callbackAfterLogin) {
     loadScriptOnce(LOGIN_URL, 'loginLoaded', function() {
       if (typeof window.openLoginModal !== 'function') {
@@ -43,30 +38,28 @@
       }
       window.openLoginModal(function(user){
         loggedUser = user;
-        window.hideModelMissingNotice && window.hideModelMissingNotice();
         window.startRotulagemUX && window.startRotulagemUX();
         if (typeof callbackAfterLogin === 'function') callbackAfterLogin(user);
       }, USERS_URL);
     });
   };
 
-  // Inicia fluxo de rotulagem UX (clique + sugestões)
+  // Inicia listener de clique
   window.startRotulagemUX = function() {
-    window.hideModelMissingNotice && window.hideModelMissingNotice();
     loadScriptOnce(UTILS_URL, 'utilsLoaded', function() {
       loadScriptOnce(ROTULAGEM_URL, 'rotulagemLoaded', function() {
-        // Evita múltiplos listeners
+        // Remove listener antigo, se houver
         if (window.__rotulagem_taxonomia_click) {
           document.removeEventListener('click', window.__rotulagem_taxonomia_click, true);
         }
         window.__rotulagem_taxonomia_click = function(e) {
+          // Não abre se já tem algum modal aberto
           if (
             document.getElementById('taxo-model-missing') ||
             document.getElementById('rotulagem-panel') ||
             document.getElementById('login-panel')
-          ) {
-            return;
-          }
+          ) return;
+
           var el = e.target;
           try {
             var selectorTripa = getSelectorTripa(el);
@@ -78,7 +71,7 @@
               text: el.innerText,
               html: el.outerHTML
             };
-            // Sugestões default + contexto dinâmico
+            // Sugestões padrão + contexto
             var options = ["header", "footer", "menu", "main", "hero", "conteúdo", "rodapé", "aside", "article", "banner"];
             if (data.contextHeadingsParagraphs && data.contextHeadingsParagraphs.length > 0) {
               data.contextHeadingsParagraphs.forEach(function(ctx) {
@@ -97,7 +90,7 @@
     });
   };
 
-  // Função para envio dos rótulos ao backend para treinamento
+  // Envia exemplos para o backend para treinamento
   window.enviarRotulosParaTreinamento = function() {
     fetch(BACKEND_URL + '/api/treinamento', { method: 'POST' })
       .then(function(resp) { return resp.json(); })
@@ -113,7 +106,7 @@
       });
   };
 
-  // Verifica se existe modelo treinado ao carregar o orquestrador
+  // Checa modelo treinado ao carregar
   fetch(BACKEND_URL + '/api/model_status')
     .then(function(resp) { return resp.json(); })
     .then(function(status) {
