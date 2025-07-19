@@ -1,18 +1,21 @@
 (function () {
-  // ---- UTILIDADES PARA SUGESTÃO DE SESSÃO ----
+  // Função: encontra candidatos reais de sessão acima do elemento clicado
   function getSessionCandidates(element) {
     var candidates = [];
-    var current = element;
+    var current = element.parentElement;
     var STOP_TAGS = ["BODY", "HTML"];
     while (current && STOP_TAGS.indexOf(current.tagName) === -1) {
-      var tag = (current.tagName || "").toUpperCase();
+      var tag = current.tagName || "";
       var classes = (current.className || "").toLowerCase();
       var fontSize = parseFloat(window.getComputedStyle(current).fontSize) || 0;
       var text = (current.innerText || "").trim();
 
+      // Critérios: h1/h2, paragrafos grandes, ou tag/classe típica de sessão
       var isHeading = tag === "H1" || tag === "H2";
-      var isLargeParagraph =
-        (tag === "P" || classes.indexOf("paragraph") !== -1 || classes.indexOf("paragrafo") !== -1) && fontSize > 20;
+      var isLargeParagraph = (
+        (tag === "P" || classes.indexOf("paragraph") !== -1 || classes.indexOf("paragrafo") !== -1)
+        && fontSize > 20
+      );
       var isSpecial =
         /(session|header|menu|whatsapp|footer|modal|swiper|article|main|hero)/.test(tag.toLowerCase() + " " + classes);
 
@@ -21,37 +24,62 @@
         (isLargeParagraph && text.length > 0) ||
         (isSpecial && text.length > 0)
       ) {
-        candidates.push({
-          tag: tag,
-          classes: classes,
-          text: text,
-          fontSize: fontSize,
-          selector: window.getFullSelector ? getFullSelector(current) : "",
-        });
+        candidates.push(text);
       }
       current = current.parentElement;
     }
-    // Só textos únicos e não vazios!
-    var textos = [];
-    candidates = candidates.filter(function (c) {
-      if (c.text && textos.indexOf(c.text) === -1) {
-        textos.push(c.text);
-        return true;
-      }
-      return false;
-    });
     return candidates.reverse();
   }
 
-  // ---- MODAL LOGIC ----
+  // Função inteligente: dispara backend e junta sugestões
+  window.sugerirEShowRotulagem = function(el, loggedUser) {
+    var candidatos = getSessionCandidates(el);
+    var data = {
+      clicked: {
+        tag: el.tagName,
+        classes: (el.className || ""),
+        text: (el.innerText || "").trim(),
+        fontSize: parseFloat(window.getComputedStyle(el).fontSize) || 0,
+        selector: window.getFullSelector ? getFullSelector(el) : "",
+      },
+      acima: candidatos
+    };
+    // LOG clique
+    console.log('[Rotulagem-LOG] Clique:', data);
+
+    fetch("https://labelling-production.up.railway.app/api/inteligencia", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(resp => {
+      // Sugestão prioritária do backend, fallback para candidatos DOM
+      var sugestoes = [];
+      if (resp && resp.sessao) sugestoes.push(resp.sessao);
+      if (resp && resp.options && Array.isArray(resp.options)) {
+        resp.options.forEach(function (s) {
+          if (s && sugestoes.indexOf(s) === -1) sugestoes.push(s);
+        });
+      }
+      if (!sugestoes.length) sugestoes = candidatos;
+      window.openRotulagemModal(data, sugestoes, loggedUser, "Rotule este exemplo e salve!");
+    })
+    .catch(function(err) {
+      console.warn('[Rotulagem-LOG] Erro ao sugerir:', err);
+      window.openRotulagemModal(data, candidatos, loggedUser, "Rotule este exemplo e salve!");
+    });
+  };
+
+  // Exibe o modal de rotulagem e sempre reativa o clique ao fechar
   function openRotulagemModal(data, sugestoes, user, msgExtra) {
-    // Remove modal existente, se houver
+    // Remove modal existente se houver
     var panel = document.getElementById('rotulagem-panel');
     var backdrop = document.getElementById('rotulagem-backdrop');
     if (panel) panel.remove();
     if (backdrop) backdrop.remove();
 
-    // Adiciona CSS (apenas 1x)
+    // CSS (apenas 1x)
     if (!document.getElementById("rotulagem-css")) {
       var link = document.createElement('link');
       link.id = "rotulagem-css";
@@ -60,7 +88,7 @@
       document.head.appendChild(link);
     }
 
-    // Cria HTML da modal
+    // Cria HTML
     var divBackdrop = document.createElement('div');
     divBackdrop.id = 'rotulagem-backdrop';
     divBackdrop.style.display = "block";
@@ -100,9 +128,9 @@
     function closeModal() {
       document.getElementById('rotulagem-panel')?.remove();
       document.getElementById('rotulagem-backdrop')?.remove();
-      // Reativa clique
-      window.__rotulagem_modal_aberto = false;
+      // Sempre reativa listener!
     }
+
     document.getElementById('rotulagem_cancelar').onclick = function () {
       closeModal();
     };
@@ -117,88 +145,32 @@
         usuario: user || null,
         timestamp: new Date().toISOString()
       });
-      // LOG NO FRONT
       console.log("[Rotulagem-LOG] Salvando exemplo:", exemplo);
       fetch("https://labelling-production.up.railway.app/api/rotulo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(exemplo)
       })
-        .then(r => r.json())
-        .then(resp => {
-          console.log("[Rotulagem-LOG] Resposta do backend:", resp);
-          closeModal();
-        })
-        .catch(e => {
-          document.getElementById('rotulagem_msg').textContent = 'Erro ao salvar: ' + e;
-        });
+      .then(r => r.json())
+      .then(resp => {
+        console.log("[Rotulagem-LOG] Resposta do backend:", resp);
+        closeModal();
+      })
+      .catch(e => {
+        document.getElementById('rotulagem_msg').textContent = 'Erro ao salvar: ' + e;
+      });
     };
 
-    // ESC fecha
     document.onkeydown = function (ev) {
       if (ev.key === "Escape") closeModal();
     };
-    // Bloqueia clique no backdrop
+
     divBackdrop.onclick = function (e) {};
-    window.__rotulagem_modal_aberto = true;
   }
 
-  // Main handler de clique
-  window.__rotulagem_taxonomia_click = function (e) {
-    if (window.__rotulagem_modal_aberto) return; // Não abre múltiplos
-    try {
-      var element = e.target;
-      var candidatos = getSessionCandidates(element);
+  // Exporta sempre para window
+  window.openRotulagemModal = openRotulagemModal;
 
-      // LOG DE CLIQUE
-      console.log("[Rotulagem-LOG] Clique detectado. Candidatos:", candidatos);
+  console.log('[Rotulagem-LOG] Script rotulagem.js carregado.');
 
-      var data = {
-        clicked: {
-          tag: element.tagName,
-          classes: (element.className || ""),
-          text: (element.innerText || "").trim(),
-          fontSize: parseFloat(window.getComputedStyle(element).fontSize) || 0,
-          selector: window.getFullSelector ? getFullSelector(element) : "",
-        },
-        acima: candidatos
-      };
-
-      // Chama backend inteligente + envia sugestões DOM para log no Railway!
-      fetch("https://labelling-production.up.railway.app/api/inteligencia", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          debug_front: {
-            dom_sugestoes: candidatos.map(c => c.text),
-            timestamp: new Date().toISOString()
-          }
-        })
-      })
-        .then(r => r.json())
-        .then(resp => {
-          console.log("[Rotulagem-LOG] Sugestão do backend:", resp);
-          // Prioriza sugestão do backend, preenche datalist
-          var sugestoes = [];
-          if (resp && resp.sessao) sugestoes.push(resp.sessao);
-          if (resp && resp.sugestoes && Array.isArray(resp.sugestoes)) {
-            resp.sugestoes.forEach(function (s) {
-              if (s && sugestoes.indexOf(s) === -1) sugestoes.push(s);
-            });
-          }
-          // fallback para candidatos DOM se nada
-          if (!sugestoes.length) sugestoes = candidatos.map(c => c.text);
-          openRotulagemModal(data, sugestoes, window.loggedUser, "Rotule este exemplo e salve!");
-        });
-    } catch (err) {
-      alert("Falha ao sugerir sessão: " + err);
-      console.error(err);
-    }
-  };
-
-  // Ativa listener SEMPRE (mesmo após salvar/cancelar)
-  document.addEventListener("click", window.__rotulagem_taxonomia_click, true);
-  window.__rotulagem_modal_aberto = false;
-  console.log("[Rotulagem-LOG] Listener de clique ativo.");
 })();
