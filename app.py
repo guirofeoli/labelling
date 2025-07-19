@@ -18,13 +18,16 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 @app.route('/api/inteligencia', methods=['POST'])
 def inteligencia():
     data = request.json
+    # Loga sugestões DOM que vieram do front!
+    if data.get('debug_front'):
+        logging.info(f'[DEBUG_FRONT] {json.dumps(data["debug_front"])}')
     logging.info(f'[API] /api/inteligencia RECEBIDO: {json.dumps(data)[:2000]}')
     try:
         result = predict_session(data)
         logging.info(f'[API] /api/inteligencia RESPOSTA: {json.dumps(result)}')
     except Exception as e:
         logging.error(f'[API] /api/inteligencia ERRO: {str(e)}')
-        result = {'sessao': None, 'confidence': 0, 'options': []}
+        result = {'sessao': None, 'confidence': 0, 'sugestoes': []}
     return jsonify(result)
 
 @app.route('/api/rotulo', methods=['POST'])
