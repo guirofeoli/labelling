@@ -1,39 +1,38 @@
 (function () {
-  // Função: encontra candidatos reais de sessão acima do elemento clicado
+  // Função: encontra textos REAIS de sessão acima do elemento clicado
   function getSessionCandidates(element) {
     var candidates = [];
     var current = element.parentElement;
     var STOP_TAGS = ["BODY", "HTML"];
+    var keywords = /(session|header|menu|whatsapp|footer|modal|swiper|article|main|hero)/;
+
     while (current && STOP_TAGS.indexOf(current.tagName) === -1) {
       var tag = current.tagName || "";
       var classes = (current.className || "").toLowerCase();
       var fontSize = parseFloat(window.getComputedStyle(current).fontSize) || 0;
       var text = (current.innerText || "").trim();
 
-      // Critérios: h1/h2, paragrafos grandes, ou tag/classe típica de sessão
-      var isHeading = tag === "H1" || tag === "H2";
-      var isLargeParagraph = (
-        (tag === "P" || classes.indexOf("paragraph") !== -1 || classes.indexOf("paragrafo") !== -1)
-        && fontSize > 20
-      );
-      var isSpecial =
-        /(session|header|menu|whatsapp|footer|modal|swiper|article|main|hero)/.test(tag.toLowerCase() + " " + classes);
+      let isHeading = (tag === "H1" || tag === "H2") && text.length > 0 && text.length < 120;
+      let isLargeParagraph =
+        ((tag === "P" || classes.indexOf("paragraph") !== -1 || classes.indexOf("paragrafo") !== -1) &&
+         fontSize > 20 && text.length > 0 && text.length < 200);
+      let isSpecial =
+        keywords.test(tag.toLowerCase() + " " + classes) && text.length > 0 && text.length < 140;
 
-      if (
-        (isHeading && text.length > 0) ||
-        (isLargeParagraph && text.length > 0) ||
-        (isSpecial && text.length > 0)
-      ) {
+      if (isHeading || isLargeParagraph || isSpecial) {
         candidates.push(text);
       }
       current = current.parentElement;
     }
+    // Remove duplicados e vazios
+    candidates = candidates.filter((x, i, arr) => x && arr.indexOf(x) === i);
     return candidates.reverse();
   }
 
-  // Função inteligente: dispara backend e junta sugestões
+  // Função inteligente: consulta backend, loga tudo, mostra sugestões
   window.sugerirEShowRotulagem = function(el, loggedUser) {
     var candidatos = getSessionCandidates(el);
+
     var data = {
       clicked: {
         tag: el.tagName,
@@ -54,15 +53,20 @@
     })
     .then(r => r.json())
     .then(resp => {
+      // LOG resposta backend
+      console.log('[Rotulagem-LOG] Backend respondeu:', resp);
+
       // Sugestão prioritária do backend, fallback para candidatos DOM
       var sugestoes = [];
-      if (resp && resp.sessao) sugestoes.push(resp.sessao);
+      if (resp && resp.sessao && typeof resp.sessao === "string" && resp.sessao.length < 120) sugestoes.push(resp.sessao);
       if (resp && resp.options && Array.isArray(resp.options)) {
         resp.options.forEach(function (s) {
-          if (s && sugestoes.indexOf(s) === -1) sugestoes.push(s);
+          if (s && sugestoes.indexOf(s) === -1 && typeof s === "string" && s.length < 120) sugestoes.push(s);
         });
       }
       if (!sugestoes.length) sugestoes = candidatos;
+      if (!sugestoes.length) sugestoes = ["(Digite a sessão)"];
+
       window.openRotulagemModal(data, sugestoes, loggedUser, "Rotule este exemplo e salve!");
     })
     .catch(function(err) {
@@ -114,7 +118,7 @@
     var dl = document.getElementById('rotulagem_options');
     dl.innerHTML = '';
     (sugestoes || []).forEach(function (opt) {
-      if (opt && opt.length > 0) {
+      if (opt && typeof opt === "string" && opt.length > 0) {
         var op = document.createElement('option');
         op.value = opt;
         dl.appendChild(op);
