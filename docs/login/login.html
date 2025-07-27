@@ -1,14 +1,36 @@
-<div id="login-backdrop" style="display:none;"></div>
-<div id="login-panel" style="display:none;">
-  <div class="login-title">Login do Taxonomista</div>
-  <form id="login_form">
-    <input id="login_input_user" type="text" placeholder="Usuário">
-    <input id="login_input_pass" type="password" placeholder="Senha">
-    <div id="login_msg" class="login-msg"></div>
-    <div style="margin-top:18px;">
-      <button id="login_entrar" class="btn-login" type="submit">Entrar</button>
-      <button id="login_cancelar" class="btn-cancel" type="button">Cancelar</button>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Labelling</title>
+    <link rel="stylesheet" href="login.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <img src="https://via.placeholder.com/100" alt="Logo" class="login-logo">
+            <h2>Bem-vindo de volta!</h2>
+            <p>Faça login para continuar</p>
+        </div>
+        <form id="login_form" class="login-form">
+            <div class="input-group">
+                <label for="login_input_user">Usuário</label>
+                <input id="login_input_user" type="text" placeholder="Seu nome de usuário" required>
+            </div>
+            <div class="input-group">
+                <label for="login_input_pass">Senha</label>
+                <input id="login_input_pass" type="password" placeholder="Sua senha" required>
+            </div>
+            <button id="login_entrar" type="submit" class="login-button">Entrar</button>
+            <div id="login_msg" class="login-message"></div>
+        </form>
+        <div class="login-footer">
+            <p>&copy; 2025 Labelling. Todos os direitos reservados.</p>
+        </div>
     </div>
-  </form>
-</div>
+    <script src="login.js"></script>
+</body>
+</html>
+
 
